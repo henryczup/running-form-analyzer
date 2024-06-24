@@ -1,6 +1,7 @@
 import os
 import cv2
 from datetime import datetime
+from video_player import play_video
 
 class VideoRecorder:
     def __init__(self, output_dir='videos'):
@@ -44,7 +45,9 @@ class VideoRecorder:
             choice = input("Options:\n1. Rewatch video\n2. Save video with new name\n3. Exit (Delete if not saved)\nEnter your choice (1/2/3): ")
             
             if choice == '1':
-                self.play_recorded_video()
+                play_video(self.output_filename)
+                print("\nVideo playback completed. Returning to options.")
+                continue  # This ensures we go back to the start of the while loop
             elif choice == '2':
                 self.save_video_with_new_name()
             elif choice == '3':
@@ -56,22 +59,6 @@ class VideoRecorder:
                 break
             else:
                 print("Invalid choice. Please try again.")
-
-    def play_recorded_video(self):
-        cap = cv2.VideoCapture(self.output_filename)
-        
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            
-            cv2.imshow('Recorded Video', frame)
-            
-            if cv2.waitKey(30) & 0xFF == ord('q'):
-                break
-        
-        cap.release()
-        cv2.destroyAllWindows()
 
     def save_video_with_new_name(self):
         new_filename = input("Enter new filename (or press Enter to keep current name): ")
