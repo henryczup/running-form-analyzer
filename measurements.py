@@ -1,8 +1,10 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+from typing import List, Tuple, Dict
+from collections import deque
+from gait_phase import GaitPhase
 from config import HFOV_DEG, IMAGE_WIDTH_PX, KNOWN_TORSO_LENGTH_CM
-from visualization import display_dev_mode, display_user_mode
+from display import display_dev_mode, display_user_mode
 
 # Convert HFOV to radians
 HFOV_RAD = np.radians(HFOV_DEG)
@@ -10,140 +12,180 @@ HFOV_RAD = np.radians(HFOV_DEG)
 # Calculate the focal length in pixels
 FOCAL_LENGTH_PX = (IMAGE_WIDTH_PX / 2) / np.tan(HFOV_RAD / 2)
 
-def calculate_trunk_angle(shoulder, hip):
+
+class GaitCycleDetector:
+    def __init__(self, window_size: int = 30):
+        self.ankle_positions = deque(maxlen=window_size)
+        self.knee_positions = deque(maxlen=window_size)
+        self.hip_positions = deque(maxlen=window_size)
+        self.timestamps = deque(maxlen=window_size)
+        self.current_phase = GaitPhase.MID_STANCE
+        self.last_heel_strike_time = None
+        self.stride_times = deque(maxlen=5)
+
+    def update(self, ankle_position: float, knee_position: float, hip_position: float, timestamp: float) -> Tuple[GaitPhase, float]:
+        self.ankle_positions.append(ankle_position)
+        self.knee_positions.append(knee_position)
+        self.hip_positions.append(hip_position)
+        self.timestamps.append(timestamp)
+
+        cadence = 0.0
+
+        if len(self.ankle_positions) < 3:
+            return self.current_phase, cadence
+
+        # Detect heel strike (Initial Contact)
+        if (self.ankle_positions[-2] < self.ankle_positions[-1] and 
+            self.ankle_positions[-2] < self.ankle_positions[-3]):
+            if self.last_heel_strike_time is None or (timestamp - self.last_heel_strike_time) > 0.4:  # Prevent false positives
+                if self.last_heel_strike_time is not None:
+                    stride_time = timestamp - self.last_heel_strike_time
+                    self.stride_times.append(stride_time)
+                self.current_phase = GaitPhase.INITIAL_CONTACT
+                self.last_heel_strike_time = timestamp
+
+        # Detect other phases
+        elif self.current_phase == GaitPhase.INITIAL_CONTACT:
+            if self.knee_positions[-1] > self.knee_positions[-2]:
+                self.current_phase = GaitPhase.LOADING_RESPONSE
+        elif self.current_phase == GaitPhase.LOADING_RESPONSE:
+            if self.ankle_positions[-1] < self.ankle_positions[-2]:
+                self.current_phase = GaitPhase.MID_STANCE
+        elif self.current_phase == GaitPhase.MID_STANCE:
+            if self.ankle_positions[-1] < self.ankle_positions[-2]:
+                self.current_phase = GaitPhase.TERMINAL_STANCE
+        elif self.current_phase == GaitPhase.TERMINAL_STANCE:
+            if self.ankle_positions[-1] > self.ankle_positions[-2]:
+                self.current_phase = GaitPhase.PRE_SWING
+        elif self.current_phase == GaitPhase.PRE_SWING:
+            if self.knee_positions[-1] > self.knee_positions[-2]:
+                self.current_phase = GaitPhase.INITIAL_SWING
+        elif self.current_phase == GaitPhase.INITIAL_SWING:
+            if self.knee_positions[-1] < self.knee_positions[-2]:
+                self.current_phase = GaitPhase.MID_SWING
+        elif self.current_phase == GaitPhase.MID_SWING:
+            if self.ankle_positions[-1] < self.ankle_positions[-2]:
+                self.current_phase = GaitPhase.TERMINAL_SWING
+
+        # Calculate cadence
+        if len(self.stride_times) > 0:
+            average_stride_time = sum(self.stride_times) / len(self.stride_times)
+            cadence = 60 / average_stride_time  # steps per minute
+
+        return self.current_phase, cadence
+    
+def calculate_angle(vector1: np.ndarray, vector2: np.ndarray) -> float:
+    """Calculate the angle between two vectors."""
+    dot_product = np.dot(vector1, vector2)
+    magnitudes = np.linalg.norm(vector1) * np.linalg.norm(vector2)
+    angle_rad = np.arccos(dot_product / magnitudes)
+    return np.degrees(angle_rad)
+
+def calculate_trunk_angle(shoulder: np.ndarray, hip: np.ndarray) -> float:
+    """Calculate the trunk angle relative to vertical."""
     trunk_line = hip - shoulder
     vertical_line = np.array([0, 1])
-    
-    dot_product = np.dot(trunk_line, vertical_line)
-    magnitudes = np.linalg.norm(trunk_line) * np.linalg.norm(vertical_line)
-    
-    angle_rad = np.arccos(dot_product / magnitudes)
-    angle_deg = np.degrees(angle_rad)
-    
-    # Determine the orientation of the trunk line
-    if trunk_line[0] < 0:
-        angle_deg = -angle_deg
-    
-    return angle_deg
+    angle = calculate_angle(trunk_line, vertical_line)
+    return -angle if trunk_line[0] < 0 else angle
 
-def calculate_knee_angle(hip, knee, ankle):
-    thigh = np.array(hip) - np.array(knee)
-    lower_leg = np.array(knee) - np.array(ankle)
-    
-    dot_product = np.dot(thigh, lower_leg)
-    magnitudes = np.linalg.norm(thigh) * np.linalg.norm(lower_leg)
-    
-    angle_rad = np.arccos(dot_product / magnitudes)
-    angle_deg = np.degrees(angle_rad)
-    
-    return 180 - angle_deg
+def calculate_knee_angle(hip: np.ndarray, knee: np.ndarray, ankle: np.ndarray) -> float:
+    """Calculate the knee angle."""
+    thigh = hip - knee
+    lower_leg = ankle - knee
+    return 180 - calculate_angle(thigh, lower_leg)
 
-def calculate_arm_swing_angle(shoulder, elbow):
-    upper_arm = np.array(elbow) - np.array(shoulder)
+def calculate_arm_swing_angle(shoulder: np.ndarray, elbow: np.ndarray) -> float:
+    """Calculate the arm swing angle relative to vertical."""
+    upper_arm = elbow - shoulder
     vertical_line = np.array([0, 1])
-    
-    dot_product = np.dot(upper_arm, vertical_line)
-    magnitudes = np.linalg.norm(upper_arm) * np.linalg.norm(vertical_line)
-    
-    angle_rad = np.arccos(dot_product / magnitudes)
-    angle_deg = np.degrees(angle_rad)
-    
-    return angle_deg
+    return calculate_angle(upper_arm, vertical_line)
 
-def calculate_hip_ankle_angle(hip, ankle):
-    hip_ankle_line = np.array(ankle) - np.array(hip)
+def calculate_hip_ankle_angle(hip: np.ndarray, ankle: np.ndarray) -> float:
+    """Calculate the hip to ankle angle relative to vertical."""
+    hip_ankle_line = ankle - hip
     vertical_line = np.array([0, 1])
-    
-    dot_product = np.dot(hip_ankle_line, vertical_line)
-    magnitudes = np.linalg.norm(hip_ankle_line) * np.linalg.norm(vertical_line)
-    
-    angle_rad = np.arccos(dot_product / magnitudes)
-    angle_deg = np.degrees(angle_rad)
-    
-    return angle_deg
+    return calculate_angle(hip_ankle_line, vertical_line)
 
-def calculate_vertical_oscillation(hip_positions, scale_factor):
-    max_position = np.max(hip_positions)
-    min_position = np.min(hip_positions)
-    vertical_oscillation = (max_position - min_position) / 2
-    return vertical_oscillation * scale_factor  # Convert to centimeters
+def calculate_vertical_oscillation(hip_positions: List[float], scale_factor: float) -> float:
+    """Calculate the vertical oscillation using a moving average."""
+    if len(hip_positions) < 2:
+        return 0.0
+    moving_avg = np.convolve(hip_positions, np.ones(5), 'valid') / 5
+    return (np.max(moving_avg) - np.min(moving_avg)) / 2 * scale_factor
 
-def estimate_distance(height_px, focal_length_px, known_height_cm):
-    # Use the known height and focal length to estimate the distance
-    distance_cm = (known_height_cm * focal_length_px) / height_px
-    return distance_cm
+def estimate_distance(height_px: float, focal_length_px: float, known_height_cm: float) -> float:
+    """Estimate the distance based on known height and focal length."""
+    return (known_height_cm * focal_length_px) / height_px
 
+def calculate_metrics(keypoint_coords: List[np.ndarray], keypoint_confs: List[float], frame: np.ndarray, 
+                      confidence_threshold: float, hip_positions: List[float],
+                      left_gait_detector: GaitCycleDetector, right_gait_detector: GaitCycleDetector,
+                      timestamp: float, mode: str) -> Tuple[np.ndarray, List[float], Dict[str, float]]:
+    """Calculate various metrics based on keypoint data."""
+    metrics = {
+        'trunk_angle': 0.0,
+        'knee_angle': 0.0,
+        'arm_swing_angle': 0.0,
+        'distance_cm': 0.0,
+        'vertical_oscillation': 0.0,
+        'left_hip_ankle_angle': 0.0,
+        'right_hip_ankle_angle': 0.0,
+        'left_gait_phase': None,
+        'right_gait_phase': None,
+        'cadence': 0.0
+    }
 
-def calculate_metrics(keypoint_coords, keypoint_confs, frame, confidence_threshold, hip_positions, left_ankle_positions, right_ankle_positions, mode, left_ankle_velocities):
-    left_shoulder, right_shoulder, left_hip, right_hip, left_knee, right_knee, left_ankle, right_ankle, left_elbow, right_elbow = keypoint_coords
-    left_shoulder_conf, right_shoulder_conf, left_hip_conf, right_hip_conf, left_knee_conf, right_knee_conf, left_ankle_conf, right_ankle_conf, left_elbow_conf, right_elbow_conf = keypoint_confs
-
-    trunk_angle = 0.0
-    knee_angle = 0.0
-    arm_swing_angle = 0.0
-    distance_cm = 0.0
-    vertical_oscillation = 0.0
-    left_hip_ankle_angle = 0.0
-    right_hip_ankle_angle = 0.0
-
-    # Trunk angle calculation
-    if left_shoulder_conf > confidence_threshold and right_shoulder_conf > confidence_threshold and left_hip_conf > confidence_threshold and right_hip_conf > confidence_threshold:
-        shoulder_midpoint = (left_shoulder + right_shoulder) / 2
-        hip_midpoint = (left_hip + right_hip) / 2
-        trunk_angle = calculate_trunk_angle(shoulder_midpoint, hip_midpoint)
-
-    # Knee angle calculation
-    if left_hip_conf > confidence_threshold and left_knee_conf > confidence_threshold and left_ankle_conf > confidence_threshold:
-        knee_angle = calculate_knee_angle(left_hip, left_knee, left_ankle)
-
-    # Arm swing angle calculation
-    if left_shoulder_conf > confidence_threshold and left_elbow_conf > confidence_threshold:
-        arm_swing_angle = calculate_arm_swing_angle(left_shoulder, left_elbow)
-
-    # Distance estimation
-    if left_hip_conf > confidence_threshold and left_shoulder_conf > confidence_threshold and right_hip_conf > confidence_threshold and right_shoulder_conf > confidence_threshold:
-        hip_midpoint = (left_hip + right_hip) / 2
-        shoulder_midpoint = (left_shoulder + right_shoulder) / 2
+    if all(conf > confidence_threshold for conf in keypoint_confs[:4]):  # shoulders and hips
+        shoulder_midpoint = (keypoint_coords[0] + keypoint_coords[1]) / 2
+        hip_midpoint = (keypoint_coords[2] + keypoint_coords[3]) / 2
+        metrics['trunk_angle'] = calculate_trunk_angle(shoulder_midpoint, hip_midpoint)
+        
         torso_length_px = np.abs(hip_midpoint[1] - shoulder_midpoint[1])
-        distance_cm = estimate_distance(torso_length_px, FOCAL_LENGTH_PX, KNOWN_TORSO_LENGTH_CM)
-
-    # Vertical oscillation calculation
-    if left_hip_conf > confidence_threshold and right_hip_conf > confidence_threshold:
-        hip_midpoint = (left_hip + right_hip) / 2
+        metrics['distance_cm'] = estimate_distance(torso_length_px, FOCAL_LENGTH_PX, KNOWN_TORSO_LENGTH_CM)
+        
         hip_positions.append(hip_midpoint[1])
         if len(hip_positions) > 10:
             hip_positions.pop(0)
-        vertical_oscillation = calculate_vertical_oscillation(hip_positions, distance_cm / FOCAL_LENGTH_PX)
+        metrics['vertical_oscillation'] = calculate_vertical_oscillation(hip_positions, metrics['distance_cm'] / FOCAL_LENGTH_PX)
 
-    # Hip to ankle angle calculation
-    if left_hip_conf > confidence_threshold and left_ankle_conf > confidence_threshold:
-        left_hip_ankle_angle = calculate_hip_ankle_angle(left_hip, left_ankle)
+    if all(conf > confidence_threshold for conf in [keypoint_confs[2], keypoint_confs[4], keypoint_confs[6]]):  # left hip, knee, ankle
+        metrics['knee_angle'] = calculate_knee_angle(keypoint_coords[2], keypoint_coords[4], keypoint_coords[6])
 
-    if right_hip_conf > confidence_threshold and right_ankle_conf > confidence_threshold:
-        right_hip_ankle_angle = calculate_hip_ankle_angle(right_hip, right_ankle)
+    if all(conf > confidence_threshold for conf in [keypoint_confs[0], keypoint_confs[8]]):  # left shoulder, elbow
+        metrics['arm_swing_angle'] = calculate_arm_swing_angle(keypoint_coords[0], keypoint_coords[8])
+
+    if keypoint_confs[2] > confidence_threshold and keypoint_confs[6] > confidence_threshold:  # left hip, ankle
+        metrics['left_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[2], keypoint_coords[6])
+
+    if keypoint_confs[3] > confidence_threshold and keypoint_confs[7] > confidence_threshold:  # right hip, ankle
+        metrics['right_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[3], keypoint_coords[7])
+
+    # Calculate gait cycle phases and cadence
+    left_cadence = right_cadence = 0
+    if all(conf > confidence_threshold for conf in [keypoint_confs[2], keypoint_confs[4], keypoint_confs[6]]):  # left hip, knee, ankle
+        metrics['left_gait_phase'], left_cadence = left_gait_detector.update(
+            keypoint_coords[6][1],  # left ankle
+            keypoint_coords[4][1],  # left knee
+            keypoint_coords[2][1],  # left hip
+            timestamp
+        )
+
+    if all(conf > confidence_threshold for conf in [keypoint_confs[3], keypoint_confs[5], keypoint_confs[7]]):  # right hip, knee, ankle
+        metrics['right_gait_phase'], right_cadence = right_gait_detector.update(
+            keypoint_coords[7][1],  # right ankle
+            keypoint_coords[5][1],  # right knee
+            keypoint_coords[3][1],  # right hip
+            timestamp
+        )
+
+    # Average cadence from both legs
+    metrics['cadence'] = (left_cadence + right_cadence) / 2 if left_cadence and right_cadence else max(left_cadence, right_cadence)
+
 
     if mode == "dev":
-        display_dev_mode(frame, trunk_angle, knee_angle, arm_swing_angle, distance_cm, vertical_oscillation, left_hip_ankle_angle, right_hip_ankle_angle)
+        display_dev_mode(frame, metrics)
     elif mode == "user":
-        display_user_mode(frame, trunk_angle, vertical_oscillation)
+        display_user_mode(frame, metrics)
 
-    return frame, hip_positions, left_ankle_positions, left_ankle_velocities
+    return frame, hip_positions, metrics
 
-
-def calculate_velocities(positions):
-    velocities = []
-    for i in range(1, len(positions)):
-        velocity = positions[i] - positions[i-1]
-        velocities.append(velocity)
-    return velocities
-
-def detect_gait_phases(foot_velocities, threshold):
-    gait_phases = []
-    for velocity in foot_velocities:
-        if abs(velocity) < threshold:
-            gait_phases.append('Stance')
-        elif velocity >= threshold:
-            gait_phases.append('Swing')
-        else:
-            gait_phases.append('Float')
-    return gait_phases
