@@ -14,13 +14,13 @@ class MetricsLogger:
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow(['timestamp', 'trunk_angle', 'knee_angle', 'arm_swing_angle', 
                                   'distance_cm', 'vertical_oscillation', 'left_hip_ankle_angle', 
-                                  'right_hip_ankle_angle', 'cadence'])
+                                  'right_hip_ankle_angle', 'cadence', 'fps'])
 
     def log_metrics(self, timestamp: float, metrics: Dict[str, float]):
         self.csv_writer.writerow([timestamp, metrics['trunk_angle'], metrics['knee_angle'], 
                                   metrics['arm_swing_angle'], metrics['distance_cm'], 
                                   metrics['vertical_oscillation'], metrics['left_hip_ankle_angle'], 
-                                  metrics['right_hip_ankle_angle'], metrics['cadence']])
+                                  metrics['right_hip_ankle_angle'], metrics['cadence'], metrics['fps']])
         self.csv_file.flush()  # Ensure data is written immediately
 
     def close(self):
@@ -35,9 +35,10 @@ class MetricsLogger:
                 self.view_log_summary()
             elif choice == '2':
                 self.rename_log_file()
+                break  # Exit the loop after renaming
             elif choice == '3':
                 if self.log_file and os.path.exists(self.log_file):
-                    confirm = input(f"Log file will be deleted. Are you sure you want to exit? (y/n): ")
+                    confirm = input(f"Do you want your log file to be deleted? (y/n): ")
                     if confirm.lower() == 'y':
                         os.remove(self.log_file)
                         print(f"Log file deleted: {self.log_file}")

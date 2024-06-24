@@ -2,13 +2,13 @@ import os
 import cv2
 import numpy as np
 import time
-from typing import List, Tuple
+from typing import Tuple
 import argparse
 
 from config import THUNDER_PATH
 from movenet import MoveNetModel
 from detection import extract_keypoints
-from measurements import calculate_metrics, GaitCycleDetector
+from measurements import MetricsCalculator
 from display import display_gait_phases, draw_connections, draw_keypoints
 from metric_logger import MetricsLogger
 from video_recorder import VideoRecorder
@@ -17,12 +17,10 @@ class RunningAnalyzer:
     def __init__(self, model_path: str):
         self.model = MoveNetModel(model_path)
         self.cap = cv2.VideoCapture(0)
-        self.hip_positions: List[float] = []
         self.start_time = time.time()
         self.frame_count = 0
         self.mode = "dev"
-        self.left_gait_detector = GaitCycleDetector()
-        self.right_gait_detector = GaitCycleDetector()
+        self.metrics_calculator = MetricsCalculator()
         self.metrics_logger = MetricsLogger()
         self.video_recorder = VideoRecorder()
 
@@ -49,9 +47,8 @@ class RunningAnalyzer:
         keypoint_coords, keypoint_confs = extract_keypoints(keypoints_with_scores, frame.shape[0], frame.shape[1])
         
         # Calculate metrics
-        frame, self.hip_positions, metrics = calculate_metrics(
-            keypoint_coords, keypoint_confs, frame, 0.4, self.hip_positions, 
-            self.left_gait_detector, self.right_gait_detector, current_time, self.mode
+        frame, metrics = self.metrics_calculator.calculate_metrics(
+            keypoint_coords, keypoint_confs, frame, 0.4, current_time, self.mode
         )
 
         # Display gait phases and cadence

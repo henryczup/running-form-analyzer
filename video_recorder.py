@@ -11,7 +11,6 @@ class VideoRecorder:
         self.frame_size = None
         self.output_filename = None
 
-        # Ensure output directory exists
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
@@ -47,12 +46,12 @@ class VideoRecorder:
             if choice == '1':
                 play_video(self.output_filename)
                 print("\nVideo playback completed. Returning to options.")
-                continue  # This ensures we go back to the start of the while loop
             elif choice == '2':
                 self.save_video_with_new_name()
+                break  # Exit the loop after saving
             elif choice == '3':
                 if self.output_filename and os.path.exists(self.output_filename):
-                    confirm = input(f"Video will be deleted. Are you sure you want to exit? (y/n): ")
+                    confirm = input(f"Do you want your recording to be deleted? (y/n): ")
                     if confirm.lower() == 'y':
                         os.remove(self.output_filename)
                         print(f"Video deleted: {self.output_filename}")
