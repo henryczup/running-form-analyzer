@@ -8,6 +8,7 @@ def display_dev_mode(frame, metrics):
     cv2.putText(frame, f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
     cv2.putText(frame, f"Left Hip-Ankle Angle: {metrics['left_hip_ankle_angle']:.2f}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
     cv2.putText(frame, f"Right Hip-Ankle Angle: {metrics['right_hip_ankle_angle']:.2f}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
+    cv2.putText(frame, f"FPS: {metrics['fps']:.2f}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
 
 def display_user_mode(frame, metrics):
     if not (-15 <= metrics['trunk_angle'] <= 15):

@@ -1,11 +1,12 @@
-import os
 import cv2
 import numpy as np
 import time
 from typing import Tuple
 import argparse
 
-from config import THUNDER_PATH
+from config import THUNDER_PATH, config
+from models.blazepose_model import BlazePoseModel
+from models.lite_hrnet import LiteHRNetModel
 from movenet import MoveNetModel
 from detection import extract_keypoints
 from measurements import MetricsCalculator
@@ -14,8 +15,15 @@ from metric_logger import MetricsLogger
 from video_recorder import VideoRecorder
 
 class RunningAnalyzer:
-    def __init__(self, model_path: str):
-        self.model = MoveNetModel(model_path)
+    def __init__(self, model_type='movenet', model_path=THUNDER_PATH):
+        if model_type == 'blazepose':
+            self.model = BlazePoseModel()
+        elif model_type == 'lite_hrnet':
+            # TODO: fix this
+            self.model = LiteHRNetModel()
+        else:
+            self.model = MoveNetModel(model_path)
+        
         self.cap = cv2.VideoCapture(0)
         self.start_time = time.time()
         self.frame_count = 0
@@ -36,17 +44,18 @@ class RunningAnalyzer:
         if not self.video_recorder.recording:
             self.video_recorder.start_recording(frame)
 
-        # Make predictions
+        # Process frame
         keypoints_with_scores = self.model.predict(frame)
-
-        # Draw the keypoints and connections on the frame
-        draw_keypoints(frame, keypoints_with_scores, confidence_threshold=0.3)
-        draw_connections(frame, keypoints_with_scores, confidence_threshold=0.3)
-
-        # Extract keypoint coordinates and confidence scores
-        keypoint_coords, keypoint_confs = extract_keypoints(keypoints_with_scores, frame.shape[0], frame.shape[1])
         
-        # Calculate metrics
+        if keypoints_with_scores is not None:
+            keypoint_coords, keypoint_confs = extract_keypoints(keypoints_with_scores, frame.shape[0], frame.shape[1])
+            draw_keypoints(frame, keypoints_with_scores, confidence_threshold=0.3)
+            draw_connections(frame, keypoints_with_scores, confidence_threshold=0.3)
+        else:
+            # If no keypoints detected, use empty lists for coords and confs
+            keypoint_coords, keypoint_confs = [], []
+
+        # Calculate metrics (this will return zero metrics if keypoints are empty)
         frame, metrics = self.metrics_calculator.calculate_metrics(
             keypoint_coords, keypoint_confs, frame, 0.4, current_time, self.mode
         )
@@ -87,15 +96,15 @@ class RunningAnalyzer:
             self.video_recorder.post_recording_options()
             self.metrics_logger.post_logging_options()
 
-
 def parse_arguments():
-    parser = argparse.ArgumentParser(description="Running Analysis using MoveNet")
-    parser.add_argument('--model', type=str, default=THUNDER_PATH, help="Path to the MoveNet model")
+    parser = argparse.ArgumentParser(description="Running Analysis using various pose estimation models")
+    parser.add_argument('--model_type', type=str, default='movenet', choices=['movenet', 'blazepose', 'lite_hrnet'], help="Type of pose estimation model to use")
+    parser.add_argument('--model_path', type=str, default=THUNDER_PATH, help="Path to the model (for MoveNet)")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    analyzer = RunningAnalyzer(args.model)
+    analyzer = RunningAnalyzer(model_type=args.model_type, model_path=args.model_path)
     analyzer.run()
 
 if __name__ == "__main__":

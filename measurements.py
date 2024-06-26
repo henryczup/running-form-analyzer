@@ -159,7 +159,11 @@ class MetricsCalculator:
         self.fps_tracker.update(timestamp)
         metrics['fps'] = self.fps_tracker.get_fps()
 
-        if all(conf > confidence_threshold for conf in keypoint_confs[:4]):  # shoulders and hips
+        def is_keypoint_valid(index):
+            return index < len(keypoint_coords) and index < len(keypoint_confs) and keypoint_confs[index] > confidence_threshold
+
+        # Calculate trunk angle
+        if all(is_keypoint_valid(i) for i in [0, 1, 2, 3]):  # shoulders and hips
             shoulder_midpoint = (keypoint_coords[0] + keypoint_coords[1]) / 2
             hip_midpoint = (keypoint_coords[2] + keypoint_coords[3]) / 2
             metrics['trunk_angle'] = calculate_trunk_angle(shoulder_midpoint, hip_midpoint)
@@ -170,21 +174,23 @@ class MetricsCalculator:
             self.hip_positions.append(hip_midpoint[1])
             metrics['vertical_oscillation'] = calculate_vertical_oscillation(list(self.hip_positions), metrics['distance_cm'] / FOCAL_LENGTH_PX)
 
-        if all(conf > confidence_threshold for conf in [keypoint_confs[2], keypoint_confs[4], keypoint_confs[6]]):  # left hip, knee, ankle
+        # Calculate knee angle (using left leg as an example)
+        if all(is_keypoint_valid(i) for i in [2, 4, 6]):  # left hip, knee, ankle
             metrics['knee_angle'] = calculate_knee_angle(keypoint_coords[2], keypoint_coords[4], keypoint_coords[6])
 
-        if all(conf > confidence_threshold for conf in [keypoint_confs[0], keypoint_confs[8]]):  # left shoulder, elbow
+        # Calculate arm swing angle (using left arm as an example)
+        if all(is_keypoint_valid(i) for i in [0, 8]):  # left shoulder, elbow
             metrics['arm_swing_angle'] = calculate_arm_swing_angle(keypoint_coords[0], keypoint_coords[8])
 
-        if keypoint_confs[2] > confidence_threshold and keypoint_confs[6] > confidence_threshold:  # left hip, ankle
+        # Calculate hip-ankle angles
+        if is_keypoint_valid(2) and is_keypoint_valid(6):  # left hip, ankle
             metrics['left_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[2], keypoint_coords[6])
-
-        if keypoint_confs[3] > confidence_threshold and keypoint_confs[7] > confidence_threshold:  # right hip, ankle
+        if is_keypoint_valid(3) and is_keypoint_valid(7):  # right hip, ankle
             metrics['right_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[3], keypoint_coords[7])
 
         # Calculate gait cycle phases and cadence
         left_cadence = right_cadence = 0
-        if all(conf > confidence_threshold for conf in [keypoint_confs[2], keypoint_confs[4], keypoint_confs[6]]):  # left hip, knee, ankle
+        if all(is_keypoint_valid(i) for i in [2, 4, 6]):  # left hip, knee, ankle
             metrics['left_gait_phase'], left_cadence = self.left_gait_detector.update(
                 keypoint_coords[6][1],  # left ankle
                 keypoint_coords[4][1],  # left knee
@@ -192,7 +198,7 @@ class MetricsCalculator:
                 timestamp
             )
 
-        if all(conf > confidence_threshold for conf in [keypoint_confs[3], keypoint_confs[5], keypoint_confs[7]]):  # right hip, knee, ankle
+        if all(is_keypoint_valid(i) for i in [3, 5, 7]):  # right hip, knee, ankle
             metrics['right_gait_phase'], right_cadence = self.right_gait_detector.update(
                 keypoint_coords[7][1],  # right ankle
                 keypoint_coords[5][1],  # right knee
@@ -209,6 +215,5 @@ class MetricsCalculator:
             display_user_mode(frame, metrics)
 
         return frame, metrics
-
 
 
