@@ -4,13 +4,13 @@ import time
 from typing import Tuple
 import argparse
 
-from config import THUNDER_PATH, config
+from config import THUNDER_PATH
 from models.blazepose_model import BlazePoseModel
 from models.lite_hrnet import LiteHRNetModel
 from movenet import MoveNetModel
 from detection import extract_keypoints
 from measurements import MetricsCalculator
-from display import display_gait_phases, draw_connections, draw_keypoints
+from display import draw_connections, draw_keypoints
 from metric_logger import MetricsLogger
 from video_recorder import VideoRecorder
 
@@ -60,9 +60,6 @@ class RunningAnalyzer:
             keypoint_coords, keypoint_confs, frame, 0.4, current_time, self.mode
         )
 
-        # Display gait phases and cadence
-        display_gait_phases(frame, metrics['left_gait_phase'], metrics['right_gait_phase'], metrics['cadence'])
-
         # Log metrics
         self.metrics_logger.log_metrics(current_time, metrics)
 
@@ -87,6 +84,12 @@ class RunningAnalyzer:
                     self.mode = "dev"
                 elif key == ord('u'):
                     self.mode = "user"
+                elif key == ord('t'):
+                    self.metrics_calculator.set_filter_type("temporal")
+                elif key == ord('k'):
+                    self.metrics_calculator.set_filter_type("kalman")
+                elif key == ord('n'):
+                    self.metrics_calculator.set_filter_type("none")
         finally:
             self.cap.release()
             cv2.destroyAllWindows()
@@ -100,11 +103,12 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Running Analysis using various pose estimation models")
     parser.add_argument('--model_type', type=str, default='movenet', choices=['movenet', 'blazepose', 'lite_hrnet'], help="Type of pose estimation model to use")
     parser.add_argument('--model_path', type=str, default=THUNDER_PATH, help="Path to the model (for MoveNet)")
+    parser.add_argument('--filter_type', type=str, default='temporal', choices=['temporal', 'kalman', 'none'], help="Type of filter to use for heel strike detection")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    analyzer = RunningAnalyzer(model_type=args.model_type, model_path=args.model_path)
+    analyzer = RunningAnalyzer(model_type=args.model_type, model_path=args.model_path, filter_type=args.filter_type)
     analyzer.run()
 
 if __name__ == "__main__":

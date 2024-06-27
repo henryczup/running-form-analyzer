@@ -14,13 +14,14 @@ class MetricsLogger:
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow(['timestamp', 'trunk_angle', 'knee_angle', 'arm_swing_angle', 
                                   'distance_cm', 'vertical_oscillation', 'left_hip_ankle_angle', 
-                                  'right_hip_ankle_angle', 'cadence', 'fps'])
+                                  'right_hip_ankle_angle', 'total_step_count', 'steps_per_minute' 'fps', 'elapsed_time'])
 
     def log_metrics(self, timestamp: float, metrics: Dict[str, float]):
         self.csv_writer.writerow([timestamp, metrics['trunk_angle'], metrics['knee_angle'], 
                                   metrics['arm_swing_angle'], metrics['distance_cm'], 
                                   metrics['vertical_oscillation'], metrics['left_hip_ankle_angle'], 
-                                  metrics['right_hip_ankle_angle'], metrics['cadence'], metrics['fps']])
+                                  metrics['right_hip_ankle_angle'], metrics['total_step_count'],
+                                  metrics['steps_per_minute'], metrics['fps'], metrics["elapsed_time"]])
         self.csv_file.flush()  # Ensure data is written immediately
 
     def close(self):

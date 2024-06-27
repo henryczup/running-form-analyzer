@@ -9,15 +9,3 @@ IMAGE_WIDTH_PX = 1280  # Image width in pixels
 # Download models folder in directory
 THUNDER_PATH = "models/thunder-float32.tflite"
 LIGHTNING_PATH = "models/lightning-float32.tflite"
-
-
-config = {
-    'lite_hrnet': {
-        'num_joints': 17,
-        'input_size': (256, 256),
-        'output_channels': 17,
-        'stage_channels': [40, 80, 160],
-        'stage_blocks': [2, 4, 2],
-        'downsample_rate': 4
-    }
-}

@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 
 def display_dev_mode(frame, metrics):
     cv2.putText(frame, f"Trunk Angle: {metrics['trunk_angle']:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
@@ -9,37 +10,18 @@ def display_dev_mode(frame, metrics):
     cv2.putText(frame, f"Left Hip-Ankle Angle: {metrics['left_hip_ankle_angle']:.2f}", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
     cv2.putText(frame, f"Right Hip-Ankle Angle: {metrics['right_hip_ankle_angle']:.2f}", (10, 210), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
     cv2.putText(frame, f"FPS: {metrics['fps']:.2f}", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
+    cv2.putText(frame, f"Total Step Count: {metrics['total_step_count']}", (10, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(frame, f"Steps per Minute: {metrics['steps_per_minute']:.2f}", (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(frame, f"Elapsed Time: {metrics['elapsed_time']:.2f} s", (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
 
 def display_user_mode(frame, metrics):
-    if not (-15 <= metrics['trunk_angle'] <= 15):
+    if not (-5 <= metrics['trunk_angle'] <= 10):
         cv2.putText(frame, f"Trunk Angle: {metrics['trunk_angle']:.2f} degrees", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
         cv2.putText(frame, "Recommendation: Keep your trunk stable", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
-    if metrics['vertical_oscillation'] > 10:
+    if metrics['vertical_oscillation'] > 5:
         cv2.putText(frame, f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
         cv2.putText(frame, "Recommendation: Decrease your vertical oscillation", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
-
-def display_gait_phases(frame, left_phase, right_phase, cadence):
-    height, width, _ = frame.shape
-    
-    # Left leg gait phase
-    cv2.putText(frame, f"Left Gait Phase: {left_phase.name if left_phase else 'N/A'}", 
-                (10, height - 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-    
-    # Right leg gait phase
-    cv2.putText(frame, f"Right Gait Phase: {right_phase.name if right_phase else 'N/A'}", 
-                (10, height - 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    # Cadence
-    cv2.putText(frame, f"Cadence: {cadence:.1f} steps/min", 
-                (10, height - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-
-    return frame
-
-
-import cv2
-import numpy as np
-from gait_phase import GaitPhase
 
 def draw_keypoints(frame, keypoints, confidence_threshold):
     y, x, c = frame.shape

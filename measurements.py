@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import List, Tuple, Dict
+from typing import List, Literal, Tuple, Dict
 from collections import deque
 from gait_phase import GaitPhase
 from config import HFOV_DEG, IMAGE_WIDTH_PX, KNOWN_TORSO_LENGTH_CM
@@ -27,66 +27,92 @@ class FPSTracker:
 
 fps_tracker = FPSTracker()
 
-class GaitCycleDetector:
-    def __init__(self, window_size: int = 30):
-        self.ankle_positions = deque(maxlen=window_size)
-        self.knee_positions = deque(maxlen=window_size)
-        self.hip_positions = deque(maxlen=window_size)
-        self.timestamps = deque(maxlen=window_size)
-        self.current_phase = GaitPhase.MID_STANCE
-        self.last_heel_strike_time = None
-        self.stride_times = deque(maxlen=5)
+class KalmanFilter:
+    def __init__(self, initial_state, initial_estimate_error, measurement_noise, process_noise):
+        self.state = initial_state
+        self.estimate_error = initial_estimate_error
+        self.measurement_noise = measurement_noise
+        self.process_noise = process_noise
 
-    def update(self, ankle_position: float, knee_position: float, hip_position: float, timestamp: float) -> Tuple[GaitPhase, float]:
-        self.ankle_positions.append(ankle_position)
-        self.knee_positions.append(knee_position)
-        self.hip_positions.append(hip_position)
+    def update(self, measurement):
+        # Prediction
+        predicted_state = self.state
+        predicted_estimate_error = self.estimate_error + self.process_noise
+
+        # Update
+        kalman_gain = predicted_estimate_error / (predicted_estimate_error + self.measurement_noise)
+        self.state = predicted_state + kalman_gain * (measurement - predicted_state)
+        self.estimate_error = (1 - kalman_gain) * predicted_estimate_error
+
+        return self.state
+    
+class HeelStrikeDetector:
+    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal", window_size: int = 10, smoothing_window: int = 5):
+        self.filter_type = filter_type
+        self.window_size = window_size
+        self.smoothing_window = smoothing_window
+        self.positions = deque(maxlen=window_size)
+        self.timestamps = deque(maxlen=window_size)
+        self.last_heel_strike_time = None
+        
+        if self.filter_type == "kalman":
+            self.kalman = KalmanFilter(
+                initial_state=0,
+                initial_estimate_error=1,
+                measurement_noise=0.1,
+                process_noise=0.01
+            )
+
+    def temporal_filter(self, new_position: float) -> float:
+        """Apply a simple moving average filter to the new position."""
+        self.positions.append(new_position)
+        if len(self.positions) < self.smoothing_window:
+            return new_position
+        return np.mean(list(self.positions)[-self.smoothing_window:])
+
+    def update(self, ankle_position: float, timestamp: float) -> Tuple[bool, float]:
+        if self.filter_type == "temporal":
+            filtered_position = self.temporal_filter(ankle_position)
+        elif self.filter_type == "kalman":  # kalman
+            filtered_position = self.kalman.update(ankle_position)
+        else:
+            filtered_position = ankle_position
+        
+        self.positions.append(filtered_position)
         self.timestamps.append(timestamp)
 
-        cadence = 0.0
+        heel_strike_detected = False
+        stride_time = 0.0
 
-        if len(self.ankle_positions) < 3:
-            return self.current_phase, cadence
+        if len(self.positions) < 3:
+            return heel_strike_detected, stride_time
 
-        # Detect heel strike (Initial Contact)
-        if (self.ankle_positions[-2] < self.ankle_positions[-1] and 
-            self.ankle_positions[-2] < self.ankle_positions[-3]):
+        # Detect heel strike (when ankle position starts increasing after decreasing)
+        if (self.positions[-2] < self.positions[-1] and 
+            self.positions[-2] < self.positions[-3]):
             if self.last_heel_strike_time is None or (timestamp - self.last_heel_strike_time) > 0.4:  # Prevent false positives
+                heel_strike_detected = True
                 if self.last_heel_strike_time is not None:
                     stride_time = timestamp - self.last_heel_strike_time
-                    self.stride_times.append(stride_time)
-                self.current_phase = GaitPhase.INITIAL_CONTACT
                 self.last_heel_strike_time = timestamp
 
-        # Detect other phases
-        elif self.current_phase == GaitPhase.INITIAL_CONTACT:
-            if self.knee_positions[-1] > self.knee_positions[-2]:
-                self.current_phase = GaitPhase.LOADING_RESPONSE
-        elif self.current_phase == GaitPhase.LOADING_RESPONSE:
-            if self.ankle_positions[-1] < self.ankle_positions[-2]:
-                self.current_phase = GaitPhase.MID_STANCE
-        elif self.current_phase == GaitPhase.MID_STANCE:
-            if self.ankle_positions[-1] < self.ankle_positions[-2]:
-                self.current_phase = GaitPhase.TERMINAL_STANCE
-        elif self.current_phase == GaitPhase.TERMINAL_STANCE:
-            if self.ankle_positions[-1] > self.ankle_positions[-2]:
-                self.current_phase = GaitPhase.PRE_SWING
-        elif self.current_phase == GaitPhase.PRE_SWING:
-            if self.knee_positions[-1] > self.knee_positions[-2]:
-                self.current_phase = GaitPhase.INITIAL_SWING
-        elif self.current_phase == GaitPhase.INITIAL_SWING:
-            if self.knee_positions[-1] < self.knee_positions[-2]:
-                self.current_phase = GaitPhase.MID_SWING
-        elif self.current_phase == GaitPhase.MID_SWING:
-            if self.ankle_positions[-1] < self.ankle_positions[-2]:
-                self.current_phase = GaitPhase.TERMINAL_SWING
+        return heel_strike_detected, stride_time
 
-        # Calculate cadence
-        if len(self.stride_times) > 0:
-            average_stride_time = sum(self.stride_times) / len(self.stride_times)
-            cadence = 60 / average_stride_time  # steps per minute
+    def get_filtered_position(self) -> float:
+        return self.positions[-1] if self.positions else None
 
-        return self.current_phase, cadence
+    def set_filter_type(self, filter_type: Literal["temporal", "kalman", "none"]):
+        if filter_type not in ["temporal", "kalman", "none"]:
+            raise ValueError("Filter type must be either 'temporal', 'kalman', or 'none'")
+        self.filter_type = filter_type
+        if filter_type == "kalman":
+            self.kalman = KalmanFilter(
+                initial_state=self.get_filtered_position() or 0,
+                initial_estimate_error=1,
+                measurement_noise=0.1,
+                process_noise=0.01
+            )
+
     
 def calculate_angle(vector1: np.ndarray, vector2: np.ndarray) -> float:
     """Calculate the angle between two vectors."""
@@ -132,15 +158,22 @@ def estimate_distance(height_px: float, focal_length_px: float, known_height_cm:
     return (known_height_cm * focal_length_px) / height_px
 
 class MetricsCalculator:
-    def __init__(self, hip_position_window=10):
-        self.hip_positions = deque(maxlen=hip_position_window)
+    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal"):
+        self.hip_positions = deque(maxlen=10)
         self.fps_tracker = FPSTracker()
-        self.left_gait_detector = GaitCycleDetector()
-        self.right_gait_detector = GaitCycleDetector()
+        self.left_heel_strike_detector = HeelStrikeDetector(filter_type=filter_type)
+        self.right_heel_strike_detector = HeelStrikeDetector(filter_type=filter_type)
+        self.left_step_count = 0
+        self.right_step_count = 0
+        self.total_step_count = 0
+        self.start_time = None
 
     def calculate_metrics(self, keypoint_coords: List[np.ndarray], keypoint_confs: List[float], frame: np.ndarray, 
                           confidence_threshold: float, timestamp: float, mode: str) -> Tuple[np.ndarray, Dict[str, float]]:
         """Calculate various metrics based on keypoint data."""
+        if self.start_time is None:
+            self.start_time = timestamp
+
         metrics = {
             'trunk_angle': 0.0,
             'knee_angle': 0.0,
@@ -149,20 +182,25 @@ class MetricsCalculator:
             'vertical_oscillation': 0.0,
             'left_hip_ankle_angle': 0.0,
             'right_hip_ankle_angle': 0.0,
-            'left_gait_phase': None,
-            'right_gait_phase': None,
-            'cadence': 0.0,
-            'fps': 0.0
+            'left_heel_strike': False,
+            'right_heel_strike': False,
+            'total_step_count': 0,
+            'steps_per_minute': 0.0,
+            'fps': 0.0,
+            'elapsed_time': 0.0
         }
 
         # Update FPS
         self.fps_tracker.update(timestamp)
         metrics['fps'] = self.fps_tracker.get_fps()
 
+        # Calculate elapsed time
+        metrics['elapsed_time'] = timestamp - self.start_time
+
         def is_keypoint_valid(index):
             return index < len(keypoint_coords) and index < len(keypoint_confs) and keypoint_confs[index] > confidence_threshold
 
-        # Calculate trunk angle
+        # Calculate trunk angle and distance
         if all(is_keypoint_valid(i) for i in [0, 1, 2, 3]):  # shoulders and hips
             shoulder_midpoint = (keypoint_coords[0] + keypoint_coords[1]) / 2
             hip_midpoint = (keypoint_coords[2] + keypoint_coords[3]) / 2
@@ -188,26 +226,31 @@ class MetricsCalculator:
         if is_keypoint_valid(3) and is_keypoint_valid(7):  # right hip, ankle
             metrics['right_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[3], keypoint_coords[7])
 
-        # Calculate gait cycle phases and cadence
-        left_cadence = right_cadence = 0
-        if all(is_keypoint_valid(i) for i in [2, 4, 6]):  # left hip, knee, ankle
-            metrics['left_gait_phase'], left_cadence = self.left_gait_detector.update(
-                keypoint_coords[6][1],  # left ankle
-                keypoint_coords[4][1],  # left knee
-                keypoint_coords[2][1],  # left hip
-                timestamp
-            )
+        # Detect heel strikes and count steps
+        if is_keypoint_valid(6):  # left ankle
+            metrics['left_heel_strike'], _ = self.left_heel_strike_detector.update(keypoint_coords[6][1], timestamp)
+            if metrics['left_heel_strike']:
+                self.left_step_count += 1
+            metrics['left_ankle_position'] = self.left_heel_strike_detector.get_smoothed_position()
 
-        if all(is_keypoint_valid(i) for i in [3, 5, 7]):  # right hip, knee, ankle
-            metrics['right_gait_phase'], right_cadence = self.right_gait_detector.update(
-                keypoint_coords[7][1],  # right ankle
-                keypoint_coords[5][1],  # right knee
-                keypoint_coords[3][1],  # right hip
-                timestamp
-            )
+        if is_keypoint_valid(7):  # right ankle
+            metrics['right_heel_strike'], _ = self.right_heel_strike_detector.update(keypoint_coords[7][1], timestamp)
+            if metrics['right_heel_strike']:
+                self.right_step_count += 1
+            metrics['right_ankle_position'] = self.right_heel_strike_detector.get_smoothed_position()
 
-        # Average cadence from both legs
-        metrics['cadence'] = (left_cadence + right_cadence) / 2 if left_cadence and right_cadence else max(left_cadence, right_cadence)
+
+        # Calculate total step count
+        self.total_step_count = self.left_step_count + self.right_step_count
+        metrics['total_step_count'] = self.total_step_count
+
+        # Calculate steps per minute
+        if metrics['elapsed_time'] > 0:
+            metrics['steps_per_minute'] = (self.total_step_count / metrics['elapsed_time']) * 60
+
+        def set_filter_type(self, filter_type: Literal["temporal", "kalman", "none"]):
+            self.left_heel_strike_detector.set_filter_type(filter_type)
+            self.right_heel_strike_detector.set_filter_type(filter_type)
 
         if mode == "dev":
             display_dev_mode(frame, metrics)
@@ -215,5 +258,5 @@ class MetricsCalculator:
             display_user_mode(frame, metrics)
 
         return frame, metrics
-
+    
 
