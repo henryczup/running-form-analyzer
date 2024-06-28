@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from typing import List, Literal, Tuple, Dict
+from typing import Any, List, Literal, Tuple, Dict
 from collections import deque
 from gait_phase import GaitPhase
 from config import HFOV_DEG, IMAGE_WIDTH_PX, KNOWN_TORSO_LENGTH_CM
@@ -46,14 +46,17 @@ class KalmanFilter:
 
         return self.state
     
-class HeelStrikeDetector:
-    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal", window_size: int = 10, smoothing_window: int = 5):
+class FootStrikeDetector:
+    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "kalman", 
+                 window_size: int = 10, smoothing_window: int = 5,
+                 detection_axis: Literal["x", "y"] = "x"):
         self.filter_type = filter_type
         self.window_size = window_size
         self.smoothing_window = smoothing_window
+        self.detection_axis = detection_axis
         self.positions = deque(maxlen=window_size)
         self.timestamps = deque(maxlen=window_size)
-        self.last_heel_strike_time = None
+        self.last_foot_strike_time = None
         
         if self.filter_type == "kalman":
             self.kalman = KalmanFilter(
@@ -70,33 +73,46 @@ class HeelStrikeDetector:
             return new_position
         return np.mean(list(self.positions)[-self.smoothing_window:])
 
-    def update(self, ankle_position: float, timestamp: float) -> Tuple[bool, float]:
+    def update(self, ankle_position: np.ndarray, timestamp: float) -> Tuple[bool, float]:
+        position = ankle_position[0] if self.detection_axis == "x" else ankle_position[1]
+        
         if self.filter_type == "temporal":
-            filtered_position = self.temporal_filter(ankle_position)
-        elif self.filter_type == "kalman":  # kalman
-            filtered_position = self.kalman.update(ankle_position)
-        else:
-            filtered_position = ankle_position
+            filtered_position = self.temporal_filter(position)
+        elif self.filter_type == "kalman":
+            filtered_position = self.kalman.update(position)
+        else:  # no filter
+            filtered_position = position
         
         self.positions.append(filtered_position)
         self.timestamps.append(timestamp)
 
-        heel_strike_detected = False
+        foot_strike_detected = False
         stride_time = 0.0
 
         if len(self.positions) < 3:
-            return heel_strike_detected, stride_time
+            return foot_strike_detected, stride_time
 
-        # Detect heel strike (when ankle position starts increasing after decreasing)
-        if (self.positions[-2] < self.positions[-1] and 
-            self.positions[-2] < self.positions[-3]):
-            if self.last_heel_strike_time is None or (timestamp - self.last_heel_strike_time) > 0.4:  # Prevent false positives
-                heel_strike_detected = True
-                if self.last_heel_strike_time is not None:
-                    stride_time = timestamp - self.last_heel_strike_time
-                self.last_heel_strike_time = timestamp
+        # Detect foot strike based on the chosen axis
+        if self.detection_axis == "x":
+            # Foot strike when ankle x-position is at its minimum
+            if (self.positions[-2] < self.positions[-1] and 
+                self.positions[-2] < self.positions[-3]):
+                foot_strike_detected = True
+        else:  # "y" axis
+            # Foot strike when ankle y-position starts increasing after decreasing
+            if (self.positions[-2] < self.positions[-1] and 
+                self.positions[-2] < self.positions[-3]):
+                foot_strike_detected = True
 
-        return heel_strike_detected, stride_time
+        if foot_strike_detected:
+            if self.last_foot_strike_time is None or (timestamp - self.last_foot_strike_time) > 0.4:  # Prevent false positives
+                if self.last_foot_strike_time is not None:
+                    stride_time = timestamp - self.last_foot_strike_time
+                self.last_foot_strike_time = timestamp
+            else:
+                foot_strike_detected = False  # Reset if it's too soon after the last detection
+
+        return foot_strike_detected, stride_time
 
     def get_filtered_position(self) -> float:
         return self.positions[-1] if self.positions else None
@@ -112,6 +128,11 @@ class HeelStrikeDetector:
                 measurement_noise=0.1,
                 process_noise=0.01
             )
+
+    def set_detection_axis(self, detection_axis: Literal["x", "y"]):
+        if detection_axis not in ["x", "y"]:
+            raise ValueError("Detection axis must be either 'x' or 'y'")
+        self.detection_axis = detection_axis
 
     
 def calculate_angle(vector1: np.ndarray, vector2: np.ndarray) -> float:
@@ -158,23 +179,17 @@ def estimate_distance(height_px: float, focal_length_px: float, known_height_cm:
     return (known_height_cm * focal_length_px) / height_px
 
 class MetricsCalculator:
-    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal"):
+    def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal",
+                 detection_axis: Literal["x", "y"] = "y"):
         self.hip_positions = deque(maxlen=10)
         self.fps_tracker = FPSTracker()
-        self.left_heel_strike_detector = HeelStrikeDetector(filter_type=filter_type)
-        self.right_heel_strike_detector = HeelStrikeDetector(filter_type=filter_type)
+        self.left_foot_strike_detector = FootStrikeDetector(filter_type=filter_type, detection_axis=detection_axis)
+        self.right_foot_strike_detector = FootStrikeDetector(filter_type=filter_type, detection_axis=detection_axis)
         self.left_step_count = 0
         self.right_step_count = 0
         self.total_step_count = 0
         self.start_time = None
-
-    def calculate_metrics(self, keypoint_coords: List[np.ndarray], keypoint_confs: List[float], frame: np.ndarray, 
-                          confidence_threshold: float, timestamp: float, mode: str) -> Tuple[np.ndarray, Dict[str, float]]:
-        """Calculate various metrics based on keypoint data."""
-        if self.start_time is None:
-            self.start_time = timestamp
-
-        metrics = {
+        self.available_metrics = {
             'trunk_angle': 0.0,
             'knee_angle': 0.0,
             'arm_swing_angle': 0.0,
@@ -182,13 +197,25 @@ class MetricsCalculator:
             'vertical_oscillation': 0.0,
             'left_hip_ankle_angle': 0.0,
             'right_hip_ankle_angle': 0.0,
-            'left_heel_strike': False,
-            'right_heel_strike': False,
+            'left_foot_strike': False,
+            'right_foot_strike': False,
+            'left_ankle_position': 0.0,
+            'right_ankle_position': 0.0,
+            'left_ankle_position_unfiltered': 0.0,
+            'right_ankle_position_unfiltered': 0.0,
             'total_step_count': 0,
             'steps_per_minute': 0.0,
             'fps': 0.0,
             'elapsed_time': 0.0
         }
+
+    def calculate_metrics(self, keypoint_coords: List[np.ndarray], keypoint_confs: List[float], frame: np.ndarray, 
+                          confidence_threshold: float, timestamp: float, mode: str) -> Tuple[np.ndarray, Dict[str, Any]]:
+        """Calculate various metrics based on keypoint data."""
+        if self.start_time is None:
+            self.start_time = timestamp
+
+        metrics = {metric: default_value for metric, default_value in self.available_metrics.items()}
 
         # Update FPS
         self.fps_tracker.update(timestamp)
@@ -226,19 +253,26 @@ class MetricsCalculator:
         if is_keypoint_valid(3) and is_keypoint_valid(7):  # right hip, ankle
             metrics['right_hip_ankle_angle'] = calculate_hip_ankle_angle(keypoint_coords[3], keypoint_coords[7])
 
-        # Detect heel strikes and count steps
+        # track left and right ankle positions filtered and unfiltered
         if is_keypoint_valid(6):  # left ankle
-            metrics['left_heel_strike'], _ = self.left_heel_strike_detector.update(keypoint_coords[6][1], timestamp)
-            if metrics['left_heel_strike']:
+            metrics['left_ankle_position_unfiltered'] = keypoint_coords[6][0]
+            metrics['left_ankle_position'] = self.left_foot_strike_detector.get_filtered_position()
+        if is_keypoint_valid(7):  # right ankle
+            metrics['right_ankle_position_unfiltered'] = keypoint_coords[7][0]
+            metrics['right_ankle_position'] = self.right_foot_strike_detector.get_filtered_position()
+        
+        # Detect foot strikes and count steps
+        if is_keypoint_valid(6):  # left ankle
+            metrics['left_foot_strike'], _ = self.left_foot_strike_detector.update(keypoint_coords[6], timestamp)
+            if metrics['left_foot_strike']:
                 self.left_step_count += 1
-            metrics['left_ankle_position'] = self.left_heel_strike_detector.get_smoothed_position()
+            metrics['left_ankle_position'] = self.left_foot_strike_detector.get_filtered_position()
 
         if is_keypoint_valid(7):  # right ankle
-            metrics['right_heel_strike'], _ = self.right_heel_strike_detector.update(keypoint_coords[7][1], timestamp)
-            if metrics['right_heel_strike']:
+            metrics['right_foot_strike'], _ = self.right_foot_strike_detector.update(keypoint_coords[7], timestamp)
+            if metrics['right_foot_strike']:
                 self.right_step_count += 1
-            metrics['right_ankle_position'] = self.right_heel_strike_detector.get_smoothed_position()
-
+            metrics['right_ankle_position'] = self.right_foot_strike_detector.get_filtered_position()
 
         # Calculate total step count
         self.total_step_count = self.left_step_count + self.right_step_count
@@ -248,15 +282,26 @@ class MetricsCalculator:
         if metrics['elapsed_time'] > 0:
             metrics['steps_per_minute'] = (self.total_step_count / metrics['elapsed_time']) * 60
 
-        def set_filter_type(self, filter_type: Literal["temporal", "kalman", "none"]):
-            self.left_heel_strike_detector.set_filter_type(filter_type)
-            self.right_heel_strike_detector.set_filter_type(filter_type)
-
         if mode == "dev":
             display_dev_mode(frame, metrics)
         elif mode == "user":
             display_user_mode(frame, metrics)
 
         return frame, metrics
+    
+    def set_filter_type(self, filter_type: Literal["temporal", "kalman", "none"]):
+        self.left_foot_strike_detector.set_filter_type(filter_type)
+        self.right_foot_strike_detector.set_filter_type(filter_type)
+
+    def set_detection_axis(self, detection_axis: Literal["x", "y"]):
+        self.left_foot_strike_detector.set_detection_axis(detection_axis)
+        self.right_foot_strike_detector.set_detection_axis(detection_axis)
+
+    def get_available_metrics(self) -> Dict[str, Any]:
+        """Return the dictionary of available metrics with their default values."""
+        return self.available_metrics
+
+
+
     
 

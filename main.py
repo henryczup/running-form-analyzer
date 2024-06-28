@@ -15,22 +15,28 @@ from metric_logger import MetricsLogger
 from video_recorder import VideoRecorder
 
 class RunningAnalyzer:
-    def __init__(self, model_type='movenet', model_path=THUNDER_PATH):
+    def __init__(self, model_type='blazepose', model_path=THUNDER_PATH, filter_type='kalman', detection_axis='x'):
         if model_type == 'blazepose':
             self.model = BlazePoseModel()
         elif model_type == 'lite_hrnet':
             # TODO: fix this
             self.model = LiteHRNetModel()
-        else:
+        elif model_type == 'movenet':
             self.model = MoveNetModel(model_path)
+        else:
+            raise ValueError(f"Invalid model type: {model_type}")
         
         self.cap = cv2.VideoCapture(0)
         self.start_time = time.time()
         self.frame_count = 0
         self.mode = "dev"
-        self.metrics_calculator = MetricsCalculator()
+        self.metrics_calculator = MetricsCalculator(filter_type=filter_type, detection_axis=detection_axis)
         self.metrics_logger = MetricsLogger()
         self.video_recorder = VideoRecorder()
+
+        # Initialize metrics logging with all available metrics
+        available_metrics = self.metrics_calculator.get_available_metrics()
+        self.metrics_logger.initialize_logging(available_metrics)
 
     def process_frame(self) -> Tuple[bool, np.ndarray]:
         ret, frame = self.cap.read()
@@ -90,25 +96,34 @@ class RunningAnalyzer:
                     self.metrics_calculator.set_filter_type("kalman")
                 elif key == ord('n'):
                     self.metrics_calculator.set_filter_type("none")
+                elif key == ord('x'):
+                    self.metrics_calculator.set_detection_axis("x")
+                elif key == ord('y'):
+                    self.metrics_calculator.set_detection_axis("y")
         finally:
             self.cap.release()
             cv2.destroyAllWindows()
-            self.metrics_logger.close()
             self.video_recorder.stop_recording()
+            
             print("\nPost-processing options:")
             self.video_recorder.post_recording_options()
             self.metrics_logger.post_logging_options()
+            self.metrics_logger.close()
+
+            
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Running Analysis using various pose estimation models")
-    parser.add_argument('--model_type', type=str, default='movenet', choices=['movenet', 'blazepose', 'lite_hrnet'], help="Type of pose estimation model to use")
+    parser.add_argument('--model_type', type=str, default='blazepose', choices=['movenet', 'blazepose', 'lite_hrnet'], help="Type of pose estimation model to use")
     parser.add_argument('--model_path', type=str, default=THUNDER_PATH, help="Path to the model (for MoveNet)")
-    parser.add_argument('--filter_type', type=str, default='temporal', choices=['temporal', 'kalman', 'none'], help="Type of filter to use for heel strike detection")
+    parser.add_argument('--filter_type', type=str, default='kalman', choices=['temporal', 'kalman', 'none'], help="Type of filter to use for foot strike detection")
+    parser.add_argument('--detection_axis', type=str, default='x', choices=['x', 'y'], help="Axis to use for foot strike detection (x: horizontal, y: vertical)")
     return parser.parse_args()
 
 def main():
     args = parse_arguments()
-    analyzer = RunningAnalyzer(model_type=args.model_type, model_path=args.model_path, filter_type=args.filter_type)
+    analyzer = RunningAnalyzer(model_type=args.model_type, model_path=args.model_path, 
+                               filter_type=args.filter_type, detection_axis=args.detection_axis)
     analyzer.run()
 
 if __name__ == "__main__":

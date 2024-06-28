@@ -13,6 +13,8 @@ def display_dev_mode(frame, metrics):
     cv2.putText(frame, f"Total Step Count: {metrics['total_step_count']}", (10, 270), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Steps per Minute: {metrics['steps_per_minute']:.2f}", (10, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Elapsed Time: {metrics['elapsed_time']:.2f} s", (10, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(frame, f"Left Foot Strike: {metrics['left_foot_strike']}", (10, 360), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(frame, f"Right Foot Strike: {metrics['right_foot_strike']}", (10, 390), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
 
 def display_user_mode(frame, metrics):
     if not (-5 <= metrics['trunk_angle'] <= 10):
