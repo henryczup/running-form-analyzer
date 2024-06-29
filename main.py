@@ -3,16 +3,16 @@ import numpy as np
 import time
 from typing import Tuple
 import argparse
-
+from display import draw_connections, draw_keypoints
+from metric_logger import MetricsLogger
+from metrics_calculator import MetricsCalculator
+from models.movenet import MoveNetModel
+from video_recorder import VideoRecorder
 from config import THUNDER_PATH
 from models.blazepose_model import BlazePoseModel
 from models.lite_hrnet import LiteHRNetModel
-from movenet import MoveNetModel
 from detection import extract_keypoints
-from measurements import MetricsCalculator
-from display import draw_connections, draw_keypoints
-from metric_logger import MetricsLogger
-from video_recorder import VideoRecorder
+
 
 class RunningAnalyzer:
     def __init__(self, model_type='blazepose', model_path=THUNDER_PATH, filter_type='kalman', detection_axis='x'):
@@ -90,16 +90,7 @@ class RunningAnalyzer:
                     self.mode = "dev"
                 elif key == ord('u'):
                     self.mode = "user"
-                elif key == ord('t'):
-                    self.metrics_calculator.set_filter_type("temporal")
-                elif key == ord('k'):
-                    self.metrics_calculator.set_filter_type("kalman")
-                elif key == ord('n'):
-                    self.metrics_calculator.set_filter_type("none")
-                elif key == ord('x'):
-                    self.metrics_calculator.set_detection_axis("x")
-                elif key == ord('y'):
-                    self.metrics_calculator.set_detection_axis("y")
+                
         finally:
             self.cap.release()
             cv2.destroyAllWindows()
@@ -107,8 +98,9 @@ class RunningAnalyzer:
             
             print("\nPost-processing options:")
             self.video_recorder.post_recording_options()
-            self.metrics_logger.post_logging_options()
             self.metrics_logger.close()
+            self.metrics_logger.post_logging_options()
+
 
             
 

@@ -1,6 +1,7 @@
 import os
 import cv2
 from datetime import datetime
+
 from video_player import play_video
 
 class VideoRecorder:
