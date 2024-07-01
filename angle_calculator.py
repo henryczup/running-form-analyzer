@@ -32,3 +32,10 @@ class AngleCalculator:
         hip_ankle_line = ankle - hip
         vertical_line = np.array([0, 1])
         return AngleCalculator.calculate_angle(hip_ankle_line, vertical_line)
+    
+    @staticmethod
+    def calculate_elbow_angle(shoulder: np.ndarray, elbow: np.ndarray, wrist: np.ndarray) -> float:
+        upper_arm = elbow - shoulder
+        forearm = wrist - elbow
+        return 180 - AngleCalculator.calculate_angle(upper_arm, forearm)
+        

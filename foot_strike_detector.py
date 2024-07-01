@@ -5,6 +5,8 @@ import numpy as np
 
 from filter import KalmanFilter
 
+# TODO: Move filters into Filter file
+
 class FootStrikeDetector:
     def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "kalman", 
                  window_size: int = 10, smoothing_window: int = 5,
@@ -75,20 +77,3 @@ class FootStrikeDetector:
 
     def get_filtered_position(self) -> float:
         return self.positions[-1] if self.positions else None
-
-    def set_filter_type(self, filter_type: Literal["temporal", "kalman", "none"]):
-        if filter_type not in ["temporal", "kalman", "none"]:
-            raise ValueError("Filter type must be either 'temporal', 'kalman', or 'none'")
-        self.filter_type = filter_type
-        if filter_type == "kalman":
-            self.kalman = KalmanFilter(
-                initial_state=self.get_filtered_position() or 0,
-                initial_estimate_error=1,
-                measurement_noise=0.1,
-                process_noise=0.01
-            )
-
-    def set_detection_axis(self, detection_axis: Literal["x", "y"]):
-        if detection_axis not in ["x", "y"]:
-            raise ValueError("Detection axis must be either 'x' or 'y'")
-        self.detection_axis = detection_axis

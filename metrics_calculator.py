@@ -9,6 +9,7 @@ from angle_calculator import AngleCalculator
 from assessor import Assessor
 from config import HFOV_DEG, IMAGE_WIDTH_PX, KNOWN_TORSO_LENGTH_CM
 from foot_strike_detector import FootStrikeDetector
+from recommendations_calculator import RecommendationsCalculator
 
 
 HFOV_RAD = np.radians(HFOV_DEG)
@@ -23,16 +24,21 @@ class MetricsCalculator:
         self.hip_positions = deque(maxlen=10)
         self.left_foot_strike_detector = FootStrikeDetector(filter_type=filter_type, detection_axis=detection_axis)
         self.right_foot_strike_detector = FootStrikeDetector(filter_type=filter_type, detection_axis=detection_axis)
+        self.recommendations_calculator = RecommendationsCalculator(window_size=30, consistency_threshold=0.7)
         self.left_step_count = 0
         self.right_step_count = 0
         self.total_step_count = 0
         self.start_time = None
 
+        self.max_arm_swing_angle = 0
+        self.last_arm_swing_direction = None
+        self.arm_swing_threshold = 5  # degrees, adjust as needed
+
         # TODO: change to make them more modular later
-        self.last_left_knee_angle = None
-        self.last_right_knee_angle = None
-        self.last_left_hip_ankle_angle = None
-        self.last_right_hip_ankle_angle = None
+        self.last_left_knee_angle = 0.0
+        self.last_right_knee_angle = 0.0
+        self.last_left_hip_ankle_angle = 0.0
+        self.last_right_hip_ankle_angle = 0.0
 
         self.available_metrics = {
             'trunk_angle': 0.0,
@@ -43,11 +49,11 @@ class MetricsCalculator:
             'left_knee_assessment': '',
             'right_knee_assessment': '',
 
-            'arm_swing_angle': 0.0,
-            'arm_swing_angle_assessment': '',
+            'max_left_arm_swing_angle': 0.0,
+            'max_left_arm_swing_angle_assessment': '',
 
-            'elbow_angle': 0.0,
-            'elbow_angle_assessment': '',
+            'left_elbow_angle': 0.0,
+            'left_elbow_angle_assessment': '',
 
             'distance_cm': 0.0,
             'vertical_oscillation': 0.0,
@@ -62,12 +68,12 @@ class MetricsCalculator:
             'right_foot_strike': False,
             'left_ankle_position': 0.0,
             'right_ankle_position': 0.0,
-            'left_ankle_position_unfiltered': 0.0,
-            'right_ankle_position_unfiltered': 0.0,
             
             'total_step_count': 0,
             'steps_per_minute': 0.0,
-            'elapsed_time': 0.0
+            'elapsed_time': 0.0,
+
+            'recommendations': [],
         }
 
     
@@ -79,7 +85,6 @@ class MetricsCalculator:
 
         metrics = {metric: default_value for metric, default_value in self.available_metrics.items()}
 
-        # Calculate elapsed time
         metrics['elapsed_time'] = timestamp - self.start_time
 
         self.calculate_body_angles(keypoint_coords, keypoint_confs, confidence_threshold, metrics)
@@ -93,6 +98,10 @@ class MetricsCalculator:
         # Calculate steps per minute
         if metrics['elapsed_time'] > 0:
             metrics['steps_per_minute'] = (self.total_step_count / metrics['elapsed_time']) * 60
+
+        # Calculate recommendations
+        metrics['recommendations'] = self.recommendations_calculator.get_recommendations(metrics)
+
 
         if mode == "dev":
             display_dev_mode(frame, metrics)
@@ -134,12 +143,12 @@ class MetricsCalculator:
             
 
     def calculate_elbow_metrics(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, Any]):
-        if all(i in valid_keypoints for i in [1, 5, 7]):  # Left shoulder (1), left elbow (5), left wrist (7)
-            metrics['elbow_angle'] = AngleCalculator.calculate_angle(
-                valid_keypoints[1] - valid_keypoints[5],
-                valid_keypoints[7] - valid_keypoints[5]
+        # MoveNet keypoints: left_shoulder (5), left_elbow (7), left_wrist (9)
+        if all(i in valid_keypoints for i in [5, 7, 9]):
+            metrics['left_elbow_angle'] = AngleCalculator.calculate_elbow_angle(
+                valid_keypoints[5], valid_keypoints[7], valid_keypoints[9]
             )
-            metrics['elbow_angle_assessment'] = Assessor.assess_elbow_angle(metrics['elbow_angle'])
+            metrics['left_elbow_angle_assessment'] = Assessor.assess_elbow_angle(metrics['left_elbow_angle'])
 
     def calculate_knee_metrics(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, Any]):
         # Left knee
@@ -154,20 +163,27 @@ class MetricsCalculator:
             self.last_right_knee_angle = metrics['right_knee_angle']
         
     def calculate_arm_swing_metrics(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, Any]):
-        if all(i in valid_keypoints for i in [1, 5]):  # Left shoulder (1), left elbow (5)
+        if all(i in valid_keypoints for i in [0, 8]):  # Assuming 0 is left shoulder and 8 is left elbow
             current_arm_swing_angle = AngleCalculator.calculate_arm_swing_angle(
-                valid_keypoints[1], valid_keypoints[5])
+                valid_keypoints[0], valid_keypoints[8])
+            
+            # Detect change in swing direction
+            if self.last_arm_swing_direction is None:
+                self.last_arm_swing_direction = current_arm_swing_angle > self.max_arm_swing_angle
+            else:
+                current_direction = current_arm_swing_angle > self.max_arm_swing_angle
+                if current_direction != self.last_arm_swing_direction:
+                    # Direction changed, assess the previous maximum
+                    metrics['max_arm_swing_angle'] = self.max_arm_swing_angle
+                    metrics['max_arm_swing_angle_assessment'] = Assessor.assess_arm_swing_angle(self.max_arm_swing_angle)
+                    self.max_arm_swing_angle = current_arm_swing_angle
+                self.last_arm_swing_direction = current_direction
+            
+            # Update maximum if current angle is greater
+            if abs(current_arm_swing_angle - self.max_arm_swing_angle) > self.arm_swing_threshold:
+                self.max_arm_swing_angle = max(self.max_arm_swing_angle, current_arm_swing_angle)
             
             metrics['arm_swing_angle'] = current_arm_swing_angle
-            
-            # Update max arm swing angle
-            if current_arm_swing_angle > self.max_arm_swing_angle:
-                self.max_arm_swing_angle = current_arm_swing_angle
-                metrics['arm_swing_angle_assessment'] = Assessor.assess_arm_swing_angle(self.max_arm_swing_angle)
-            else:
-                # Reset max if we're in a new swing cycle
-                if current_arm_swing_angle < self.max_arm_swing_angle * 0.5:  # Arbitrary threshold, may need adjustment
-                    self.max_arm_swing_angle = 0
 
     def calculate_arm_swing_metrics(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, Any]):
         if all(i in valid_keypoints for i in [0, 8]):
