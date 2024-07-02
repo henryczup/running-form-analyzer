@@ -1,6 +1,6 @@
 from collections import deque
 
-class RecommendationsCalculator:
+class Recommendation:
     def __init__(self, window_size=30, consistency_threshold=0.7):
         self.window_size = window_size
         self.consistency_threshold = consistency_threshold

@@ -1,47 +1,26 @@
 from collections import deque
 from typing import Literal, Tuple
-
 import numpy as np
-
-from filter import KalmanFilter
-
-# TODO: Move filters into Filter file
+from utils.filters import Filters
 
 class FootStrikeDetector:
     def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "kalman", 
-                 window_size: int = 10, smoothing_window: int = 5,
-                 detection_axis: Literal["x", "y"] = "x"):
+                 window_size: int = 10, detection_axis: Literal["x", "y"] = "x"):
         self.filter_type = filter_type
         self.window_size = window_size
-        self.smoothing_window = smoothing_window
         self.detection_axis = detection_axis
         self.positions = deque(maxlen=window_size)
         self.timestamps = deque(maxlen=window_size)
         self.last_foot_strike_time = None
         
-        if self.filter_type == "kalman":
-            self.kalman = KalmanFilter(
-                initial_state=0,
-                initial_estimate_error=1,
-                measurement_noise=0.1,
-                process_noise=0.01
-            )
-
-    def temporal_filter(self, new_position: float) -> float:
-        """Apply a simple moving average filter to the new position."""
-        self.positions.append(new_position)
-        if len(self.positions) < self.smoothing_window:
-            return new_position
-        return np.mean(list(self.positions)[-self.smoothing_window:])
+        self.filter = Filters.create_filter(filter_type, window_size=window_size)
 
     def update(self, ankle_position: np.ndarray, timestamp: float) -> Tuple[bool, float]:
         position = ankle_position[0] if self.detection_axis == "x" else ankle_position[1]
         
-        if self.filter_type == "temporal":
-            filtered_position = self.temporal_filter(position)
-        elif self.filter_type == "kalman":
-            filtered_position = self.kalman.update(position)
-        else:  # no filter
+        if self.filter:
+            filtered_position = self.filter.update(position)
+        else:
             filtered_position = position
         
         self.positions.append(filtered_position)

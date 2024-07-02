@@ -1,14 +1,14 @@
 import cv2
 import numpy as np
 
-from config import EDGES
+from core.config import EDGES
 
 def display_dev_mode(frame, metrics):
     cv2.putText(frame, f"Trunk Angle: {metrics['trunk_angle']:.2f} ({metrics['trunk_angle_assessment']})", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Elbow Angle: {metrics['left_elbow_angle']:.2f} ({metrics['left_elbow_angle_assessment']})", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)    
     cv2.putText(frame, f"Left Knee Angle: {metrics['left_knee_angle']:.2f} ({metrics['left_knee_assessment']})", (10, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Right Knee Angle: {metrics['right_knee_angle']:.2f} ({metrics['right_knee_assessment']})", (10, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
-    cv2.putText(frame, f"Arm Swing Angle: {metrics['left_arm_swing_angle']:.2f} ({metrics['left_arm_swing_angle_assessment']})", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
+    cv2.putText(frame, f"Arm Swing Angle: {metrics['max_left_arm_swing_angle']:.2f} ({metrics['max_left_arm_swing_angle_assessment']})", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Distance: {metrics['distance_cm']:.2f} cm", (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm ({metrics['vertical_oscillation_assessment']})", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Left Hip-Ankle Angle: {metrics['left_hip_ankle_angle']:.2f} ({metrics['left_hip_ankle_angle_assessment']})", (10, 180), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
