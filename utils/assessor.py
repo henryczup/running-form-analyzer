@@ -1,5 +1,18 @@
 class Assessor:
     @staticmethod
+    def assess_head_angle(angle: float) -> str:
+        if angle < -16:
+            return 'Bad'
+        elif -16 <= angle < -12:
+            return 'Need Improvement'
+        elif -12 <= angle <= -2:
+            return 'Good'
+        elif -2 < angle <= 2:
+            return 'Need Improvement'
+        else:
+            return 'Bad'
+        
+    @staticmethod
     def assess_knee_angle(angle: float, is_front: bool) -> str:
         if is_front:
             if angle > 135:

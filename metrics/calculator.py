@@ -3,22 +3,24 @@ from typing import Any, Dict, List, Literal, Tuple
 import numpy as np
 
 from io_utils.display import display_dev_mode, display_user_mode
+from metrics.angle_metrics import AngleMetrics
 from metrics.recommendations import Recommendation
-from metrics.angle import Angle
-from metrics.step import StepMetrics
-from metrics.distance import Distance
+from metrics.step_metrics import StepMetrics
+from metrics.distance_metrics import DistanceMetrics
 from utils.utils import get_valid_keypoints
 
 class Calculator:
     def __init__(self, filter_type: Literal["temporal", "kalman", "none"] = "temporal",
                  detection_axis: Literal["x", "y"] = "y"):
-        self.angle_metrics = Angle()
+        self.angle_metrics = AngleMetrics()
         self.step_metrics = StepMetrics(filter_type, detection_axis)
-        self.distance_metrics = Distance()
+        self.distance_metrics = DistanceMetrics()
         self.recommendations_calculator = Recommendation(window_size=30, consistency_threshold=0.7)
         self.start_time = None
 
         self.available_metrics = {
+            'head_angle': 0.0,
+            'head_angle_assessment': '',
             'trunk_angle': 0.0,
             'trunk_angle_assessment': '',
             'left_knee_angle': 0.0,

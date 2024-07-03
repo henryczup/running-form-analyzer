@@ -8,7 +8,7 @@ HFOV_RAD = np.radians(HFOV_DEG)
 # Calculate the focal length in pixels
 FOCAL_LENGTH_PX = (IMAGE_WIDTH_PX / 2) / np.tan(HFOV_RAD / 2)
 
-class Distance:
+class DistanceMetrics:
     def __init__(self):
         self.hip_positions = deque(maxlen=10)
 

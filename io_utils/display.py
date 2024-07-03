@@ -4,6 +4,7 @@ import numpy as np
 from core.config import EDGES
 
 def display_dev_mode(frame, metrics):
+    cv2.putText(frame, f"Head Angle: {metrics['head_angle']:.2f} ({metrics['head_angle_assessment']})", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Trunk Angle: {metrics['trunk_angle']:.2f} ({metrics['trunk_angle_assessment']})", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
     cv2.putText(frame, f"Elbow Angle: {metrics['left_elbow_angle']:.2f} ({metrics['left_elbow_angle_assessment']})", (10, 240), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)    
     cv2.putText(frame, f"Left Knee Angle: {metrics['left_knee_angle']:.2f} ({metrics['left_knee_assessment']})", (10, 420), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)

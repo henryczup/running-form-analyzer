@@ -7,6 +7,7 @@ class Recommendation:
         self.metric_history = {}
         self.recommendations = {
             'vertical_oscillation': "Reduce your vertical movement",
+            'head_angle': 'Adjust your head position',
             'trunk_angle': "Adjust your torso angle",
             'left_elbow_angle': "Adjust your arm position",
             'left_knee_angle': "Adjust your left knee position",
@@ -40,6 +41,7 @@ class Recommendation:
     def get_recommendations(self, metrics):
         self.update({
             'vertical_oscillation': metrics.get('vertical_oscillation_assessment'),
+            'head_angle': metrics.get('head_angle_assessment'),
             'trunk_angle': metrics.get('trunk_angle_assessment'),
             'left_elbow_angle': metrics.get('left_elbow_angle_assessment'),
             'left_knee_angle': metrics.get('left_knee_assessment'),
