@@ -1,5 +1,32 @@
 
 # Known parameters
+from dataclasses import dataclass
+from typing import Any, Dict
+
+@dataclass
+class Config:
+    side: str
+    model_type: str
+    # filter_type: str
+    # detection_axis: str
+
+    @classmethod
+    def from_args(cls, args):
+        return cls(
+            side=args.side,
+            model_type=args.model_type,
+            # filter_type=args.filter_type,
+            # detection_axis=args.detection_axis
+        )
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            'side': self.side,
+            'model_type': self.model_type,
+            # 'filter_type': self.filter_type,
+            # 'detection_axis': self.detection_axis
+        }
+
 KNOWN_TORSO_LENGTH_CM = 52  # Average height of a person in cm
 
 # Camera parameters for your XPS 15 
@@ -30,3 +57,4 @@ EDGES = {(0,1): 'm',
          (12,14): 'c', 
          (14,16): 'c'
          }
+

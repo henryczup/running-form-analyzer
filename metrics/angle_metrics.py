@@ -1,51 +1,39 @@
 from typing import Dict
 import numpy as np
-from utils.assessor import Assessor
+from core.config import Config
+from metrics.mobility_metrics import MobilityMetrics
+from metrics.step_metrics import StepMetrics
 from utils.angle_calculator import AngleCalculator
+from feedback.assessment_calculator import AssessmentCalculator
 
 class AngleMetrics:
-    def __init__(self):
-        self.max_arm_swing_angle = 0
-        self.last_arm_swing_direction = None
-        self.arm_swing_threshold = 5  # degrees, adjust as needed
+    def __init__(self, config: Config):
+        self.config = config
+        self.angles = {}
+        self.mobility_metrics = MobilityMetrics()
+        self.step_metrics = StepMetrics(filter_type='temporal', detection_axis='y')
 
-    def calculate(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, any]):
-        angles = AngleCalculator.calculate_all_angles(valid_keypoints)
-        
-        # Update metrics with calculated angles
-        metrics.update(angles)
+    def calculate(self, valid_keypoints: Dict[int, np.ndarray], metrics: Dict[str, any], timestamp: float):
+        self.angles = AngleCalculator.calculate_all_angles(valid_keypoints, self.angles, self.config)
+        metrics.update(self.angles)
 
-        # Perform assessments
-        self.assess_angles(metrics)
+        self.update_static_angles_assessment(metrics)
 
-        # Special handling for arm swing 
-        self.handle_arm_swing(metrics)
+        self.mobility_metrics.update(self.angles, metrics)
 
-    def assess_angles(self, metrics: Dict[str, any]):
+        self.step_metrics.update(valid_keypoints, timestamp, metrics, self.angles)
+
+
+    def update_static_angles_assessment(self, metrics: Dict[str, any]):
         if 'head_angle' in metrics:
-            metrics['head_angle_assessment'] = Assessor.assess_head_angle(metrics['head_angle'])
+            metrics['head_angle_assessment'] = AssessmentCalculator.assess_head_angle(metrics['head_angle'])
 
         if 'trunk_angle' in metrics:
-            metrics['trunk_angle_assessment'] = Assessor.assess_torso_angle(abs(metrics['trunk_angle']))
+            metrics['trunk_angle_assessment'] = AssessmentCalculator.assess_torso_angle(abs(metrics['trunk_angle']))
         
-        if 'left_elbow_angle' in metrics:
-            metrics['left_elbow_angle_assessment'] = Assessor.assess_elbow_angle(metrics['left_elbow_angle'])
-
-    # When the foot strikes detector becomes accurate,
-    # remove this method and do these calculations in the step metrics class
-    def handle_arm_swing(self, metrics: Dict[str, any]):
-        if 'arm_swing_angle' in metrics:
-            current_arm_swing_angle = metrics['arm_swing_angle']
-            
-            if self.last_arm_swing_direction is None:
-                self.last_arm_swing_direction = current_arm_swing_angle > self.max_arm_swing_angle
-            else:
-                current_direction = current_arm_swing_angle > self.max_arm_swing_angle
-                if current_direction != self.last_arm_swing_direction:
-                    metrics['max_arm_swing_angle'] = self.max_arm_swing_angle
-                    metrics['max_arm_swing_angle_assessment'] = Assessor.assess_arm_swing_angle(self.max_arm_swing_angle)
-                    self.max_arm_swing_angle = current_arm_swing_angle
-                self.last_arm_swing_direction = current_direction
-            
-            if abs(current_arm_swing_angle - self.max_arm_swing_angle) > self.arm_swing_threshold:
-                self.max_arm_swing_angle = max(self.max_arm_swing_angle, current_arm_swing_angle)
+        if self.config.side == 'left':
+            if 'left_elbow_angle' in metrics:
+                metrics['left_elbow_angle_assessment'] = AssessmentCalculator.assess_elbow_angle(metrics['left_elbow_angle'])
+        else:
+            if 'right_elbow_angle' in metrics:
+                metrics['right_elbow_angle_assessment'] = AssessmentCalculator.assess_elbow_angle(metrics['right_elbow_angle'])
