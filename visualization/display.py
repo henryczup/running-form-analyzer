@@ -37,18 +37,18 @@ def display_metrics(frame, metrics, side):
     put_text(f"Right Shank Angle at strike: {metrics['right_shank_angle_at_strike']:.2f} ({metrics['right_shank_angle_assessment']})")
     
     if side == 'left':
-        put_text(f"Left Backward Arm Swing: {metrics['max_left_backward_arm_swing']:.2f} ({metrics['left_backward_arm_swing_assessment']})")
-        put_text(f"Left Forward Arm Swing: {metrics['max_left_forward_arm_swing']:.2f} ({metrics['left_forward_arm_swing_assessment']})")
         put_text(f"Left Elbow Angle: {metrics['left_elbow_angle']:.2f} ({metrics['left_elbow_angle_assessment']})")
-        put_text(f"Left Backward Hip Swing: {metrics['max_left_backward_hip_swing']:.2f} ({metrics['left_backward_hip_swing_assessment']})")
-        put_text(f"Left Forward Hip Swing: {metrics['max_left_forward_hip_swing']:.2f} ({metrics['left_forward_hip_swing_assessment']})")
+        put_text(f"Max Left Arm Forward Swing: {metrics['max_left_arm_forward_swing']:.2f} ({metrics['left_arm_forward_swing_assessment']})")
+        put_text(f"Max Left Arm Backward Swing: {metrics['max_left_arm_backward_swing']:.2f} ({metrics['left_arm_backward_swing_assessment']})")
+        put_text(f"Max Left Hip Forward Swing: {metrics['max_left_hip_forward_swing']:.2f} ({metrics['left_hip_forward_swing_assessment']})")
+        put_text(f"Max Left Hip Backward Swing: {metrics['max_left_hip_backward_swing']:.2f} ({metrics['left_hip_backward_swing_assessment']})")
     else:
-        put_text(f"Right Backward Arm Swing: {metrics['max_right_backward_arm_swing']:.2f} ({metrics['right_backward_arm_swing_assessment']})")
-        put_text(f"Right Forward Arm Swing: {metrics['max_right_forward_arm_swing']:.2f} ({metrics['right_forward_arm_swing_assessment']})")
         put_text(f"Right Elbow Angle: {metrics['right_elbow_angle']:.2f} ({metrics['right_elbow_angle_assessment']})")
-        put_text(f"Right Backward Hip Swing: {metrics['max_right_backward_hip_swing']:.2f} ({metrics['right_backward_hip_swing_assessment']})")
-        put_text(f"Right Forward Hip Swing: {metrics['max_right_forward_hip_swing']:.2f} ({metrics['right_forward_hip_swing_assessment']})")
-    
+        put_text(f"Max Right Arm Forward Swing: {metrics['max_right_arm_forward_swing']:.2f} ({metrics['right_arm_forward_swing_assessment']})")
+        put_text(f"Max Right Arm Backward Swing: {metrics['max_right_arm_backward_swing']:.2f} ({metrics['right_arm_backward_swing_assessment']})")
+        put_text(f"Max Right Hip Forward Swing: {metrics['max_right_hip_forward_swing']:.2f} ({metrics['right_hip_forward_swing_assessment']})")
+        put_text(f"Max Right Hip Backward Swing: {metrics['max_right_hip_backward_swing']:.2f} ({metrics['right_hip_backward_swing_assessment']})")
+
     put_text(f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm ({metrics['vertical_oscillation_assessment']})")
     put_text(f"Left Foot Strike: {metrics['left_foot_strike']}")
     put_text(f"Right Foot Strike: {metrics['right_foot_strike']}")
@@ -71,14 +71,14 @@ def display_recommendations(frame, metrics):
         cv2.putText(frame, "Great form! Keep it up!", (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, font_size, (0, 255, 0), font_thickness)
 
 
-def display_mode(frame, metrics, angles, mode='metrics'):
-    if mode == 'angles':
+def display_mode(frame, metrics, angles, display_mode='metrics', side='left'):
+    if display_mode == 'angles':
         display_angles(frame, angles)
-    elif mode == 'metrics':
-        display_metrics(frame, metrics)
-    elif mode == 'recommendations':
+    elif display_mode == 'metrics':
+        display_metrics(frame, metrics, side)
+    elif display_mode == 'recommendations':
         display_recommendations(frame, metrics)
     else:
-        raise ValueError(f"Invalid display mode: {mode}")
+        raise ValueError(f"Invalid display mode: {display_mode}")
 
     return frame

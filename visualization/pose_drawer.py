@@ -1,7 +1,5 @@
 import cv2
 import numpy as np
-from typing import List, Tuple, Dict
-
 from core.config import EDGES
 
 def draw_keypoints(frame, keypoints, confidence_threshold):

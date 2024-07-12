@@ -3,7 +3,7 @@ import numpy as np
 import time
 from typing import Tuple
 from metrics.metrics import Metrics
-from visualization.display import display_mode, display_recommendations, display_show_key_metrics
+from visualization.display import display_mode
 from visualization.metric_logger import MetricsLogger
 from models.movenet import MoveNetModel
 from visualization.video_recorder import VideoRecorder
@@ -22,7 +22,7 @@ class Analyzer:
         self.cap = cv2.VideoCapture(0)
         self.start_time = time.time()
         self.frame_count = 0
-        self.mode = "metrics"
+        self.display_mode = "metrics"
         self.metrics_calculator = Metrics(config)
         self.metrics_logger = MetricsLogger()
         self.video_recorder = VideoRecorder()
@@ -69,13 +69,13 @@ class Analyzer:
            valid_keypoints = {}
 
         # Calculate metrics (this will return zero metrics if keypoints are empty)
-        metrics = self.metrics_calculator.calculate_metrics(valid_keypoints, current_time)
+        metrics, angles = self.metrics_calculator.calculate_metrics(valid_keypoints, current_time)
 
         # Log metrics
         self.metrics_logger.log_metrics(current_time, metrics)
 
         # Display metrics or recommendations based on the current mode
-        frame = display_mode(frame, metrics, self.mode, self.side)
+        frame = display_mode(frame, metrics, angles, self.display_mode, self.side)
 
         # Record the processed frame
         self.video_recorder.record_frame(frame)

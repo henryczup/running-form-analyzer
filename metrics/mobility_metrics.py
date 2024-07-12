@@ -3,77 +3,75 @@ from feedback.assessment_calculator import AssessmentCalculator
 
 class MobilityMetrics:
     def __init__(self):
-        self.max_left_backward_arm_swing = 0
-        self.max_left_forward_arm_swing = 0
-        self.max_right_backward_arm_swing = 0
-        self.max_right_forward_arm_swing = 0
-        self.max_left_backward_hip_swing = 0
-        self.max_left_forward_hip_swing = 0
-        self.max_right_backward_hip_swing = 0
-        self.max_right_forward_hip_swing = 0
-        self.prev_left_arm_angle = None
-        self.prev_right_arm_angle = None
-        self.prev_left_hip_angle = None
-        self.prev_right_hip_angle = None
+        self.reset_metrics()
+
+    def reset_metrics(self):
+        self.limbs = ['left_arm', 'right_arm', 'left_hip', 'right_hip']
+        for limb in self.limbs:
+            setattr(self, f'{limb}_current_forward', 0)
+            setattr(self, f'{limb}_current_backward', 0)
+            setattr(self, f'{limb}_max_forward', 0)
+            setattr(self, f'{limb}_max_backward', 0)
+            setattr(self, f'{limb}_direction', 0)  # 0: neutral, 1: forward, -1: backward
+            setattr(self, f'{limb}_prev_angle', 0)
+            setattr(self, f'{limb}_forward_assessment', '')
+            setattr(self, f'{limb}_backward_assessment', '')
 
     def update(self, angles: Dict[str, float], metrics: Dict[str, any]):
-        self.update_arm_swing_metrics(angles, metrics)
-        self.update_hip_mobility_metrics(angles, metrics)
+        self.update_swing_metrics(angles)
+        self.update_assessments(metrics)
 
-    def update_arm_swing_metrics(self, angles: Dict[str, float], metrics: Dict[str, any]):
+    def update_swing_metrics(self, angles: Dict[str, float]):
         if 'left_arm_swing_angle' in angles:
-            current_angle = angles['left_arm_swing_angle']
-            if self.prev_left_arm_angle is not None:
-                if current_angle > self.prev_left_arm_angle:  # Arm moving backward
-                    self.max_left_backward_arm_swing = max(self.max_left_backward_arm_swing, current_angle)
-                else:  # Arm moving forward
-                    self.max_left_forward_arm_swing = max(self.max_left_forward_arm_swing, 180 - current_angle)
-            self.prev_left_arm_angle = current_angle
-
+            self.process_swing('left_arm', angles['left_arm_swing_angle'])
         if 'right_arm_swing_angle' in angles:
-            current_angle = angles['right_arm_swing_angle']
-            if self.prev_right_arm_angle is not None:
-                if current_angle > self.prev_right_arm_angle:  # Arm moving backward
-                    self.max_right_backward_arm_swing = max(self.max_right_backward_arm_swing, current_angle)
-                else:  # Arm moving forward
-                    self.max_right_forward_arm_swing = max(self.max_right_forward_arm_swing, 180 - current_angle)
-            self.prev_right_arm_angle = current_angle
-
-        metrics['max_left_backward_arm_swing'] = self.max_left_backward_arm_swing
-        metrics['max_left_forward_arm_swing'] = self.max_left_forward_arm_swing
-        metrics['max_right_backward_arm_swing'] = self.max_right_backward_arm_swing
-        metrics['max_right_forward_arm_swing'] = self.max_right_forward_arm_swing
-
-        metrics['left_backward_arm_swing_assessment'] = AssessmentCalculator.assess_backward_arm_swing(self.max_left_backward_arm_swing)
-        metrics['left_forward_arm_swing_assessment'] = AssessmentCalculator.assess_forward_arm_swing(self.max_left_forward_arm_swing)
-        metrics['right_backward_arm_swing_assessment'] = AssessmentCalculator.assess_backward_arm_swing(self.max_right_backward_arm_swing)
-        metrics['right_forward_arm_swing_assessment'] = AssessmentCalculator.assess_forward_arm_swing(self.max_right_forward_arm_swing)
-
-    def update_hip_mobility_metrics(self, angles: Dict[str, float], metrics: Dict[str, any]):
+            self.process_swing('right_arm', angles['right_arm_swing_angle'])
         if 'left_hip_angle' in angles:
-            current_angle = angles['left_hip_angle']
-            if self.prev_left_hip_angle is not None:
-                if current_angle > self.prev_left_hip_angle:  # Hip moving backward
-                    self.max_left_backward_hip_swing = max(self.max_left_backward_hip_swing, current_angle - 90)
-                else:  # Hip moving forward
-                    self.max_left_forward_hip_swing = max(self.max_left_forward_hip_swing, 90 - current_angle)
-            self.prev_left_hip_angle = current_angle
-
+            self.process_swing('left_hip', angles['left_hip_angle'])
         if 'right_hip_angle' in angles:
-            current_angle = angles['right_hip_angle']
-            if self.prev_right_hip_angle is not None:
-                if current_angle > self.prev_right_hip_angle:  # Hip moving backward
-                    self.max_right_backward_hip_swing = max(self.max_right_backward_hip_swing, current_angle - 90)
-                else:  # Hip moving forward
-                    self.max_right_forward_hip_swing = max(self.max_right_forward_hip_swing, 90 - current_angle)
-            self.prev_right_hip_angle = current_angle
+            self.process_swing('right_hip', angles['right_hip_angle'])
 
-        metrics['max_left_backward_hip_swing'] = self.max_left_backward_hip_swing
-        metrics['max_left_forward_hip_swing'] = self.max_left_forward_hip_swing
-        metrics['max_right_backward_hip_swing'] = self.max_right_backward_hip_swing
-        metrics['max_right_forward_hip_swing'] = self.max_right_forward_hip_swing
+    def process_swing(self, limb: str, current_angle: float):
+        prev_angle = getattr(self, f'{limb}_prev_angle')
+        direction = getattr(self, f'{limb}_direction')
 
-        metrics['left_backward_hip_swing_assessment'] = AssessmentCalculator.assess_backward_hip_swing(self.max_left_backward_hip_swing)
-        metrics['left_forward_hip_swing_assessment'] = AssessmentCalculator.assess_forward_hip_swing(self.max_left_forward_hip_swing)
-        metrics['right_backward_hip_swing_assessment'] = AssessmentCalculator.assess_backward_hip_swing(self.max_right_backward_hip_swing)
-        metrics['right_forward_hip_swing_assessment'] = AssessmentCalculator.assess_forward_hip_swing(self.max_right_forward_hip_swing)
+        if current_angle > prev_angle:
+            if direction <= 0:  # Starting forward swing
+                if direction == -1:  # Completed backward swing
+                    self.finalize_swing(limb, 'backward')
+                direction = 1
+            if direction == 1:  # Continuing forward swing
+                setattr(self, f'{limb}_current_forward', max(getattr(self, f'{limb}_current_forward'), current_angle))
+        elif current_angle < prev_angle:
+            if direction >= 0:  # Starting backward swing
+                if direction == 1:  # Completed forward swing
+                    self.finalize_swing(limb, 'forward')
+                direction = -1
+            if direction == -1:  # Continuing backward swing
+                setattr(self, f'{limb}_current_backward', max(getattr(self, f'{limb}_current_backward'), abs(current_angle)))
+
+        setattr(self, f'{limb}_prev_angle', current_angle)
+        setattr(self, f'{limb}_direction', direction)
+
+    def finalize_swing(self, limb: str, swing_type: str):
+        current_max = getattr(self, f'{limb}_current_{swing_type}')
+        setattr(self, f'{limb}_max_{swing_type}', current_max)
+        setattr(self, f'{limb}_current_{swing_type}', 0)
+
+        if 'arm' in limb:
+            assessment = (AssessmentCalculator.assess_forward_arm_swing(current_max) 
+                          if swing_type == 'forward' 
+                          else AssessmentCalculator.assess_backward_arm_swing(current_max))
+        else:  # hip
+            assessment = (AssessmentCalculator.assess_forward_hip_swing(current_max) 
+                          if swing_type == 'forward' 
+                          else AssessmentCalculator.assess_backward_hip_swing(current_max))
+        
+        setattr(self, f'{limb}_{swing_type}_assessment', assessment)
+
+    def update_assessments(self, metrics: Dict[str, any]):
+        for limb in self.limbs:
+            metrics[f'max_{limb}_forward_swing'] = getattr(self, f'{limb}_max_forward')
+            metrics[f'max_{limb}_backward_swing'] = getattr(self, f'{limb}_max_backward')
+            metrics[f'{limb}_forward_swing_assessment'] = getattr(self, f'{limb}_forward_assessment')
+            metrics[f'{limb}_backward_swing_assessment'] = getattr(self, f'{limb}_backward_assessment')

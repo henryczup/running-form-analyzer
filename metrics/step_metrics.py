@@ -23,6 +23,14 @@ class StepMetrics:
             'shank': ''
         }
 
+        # Persistent metrics
+        self.left_knee_angle_at_strike = 0.0
+        self.right_knee_angle_at_strike = 0.0
+        self.left_hip_ankle_angle_at_strike = 0.0
+        self.right_hip_ankle_angle_at_strike = 0.0
+        self.left_shank_angle_at_strike = 0.0
+        self.right_shank_angle_at_strike = 0.0
+
     def update(self, valid_keypoints: Dict[int, np.ndarray], timestamp: float, metrics: Dict[str, any], angles: Dict[str, float]):
         left_foot_strike, right_foot_strike = self.detect_foot_strikes(valid_keypoints, timestamp, metrics)
         self.calculate_step_counts(metrics)
@@ -56,18 +64,24 @@ class StepMetrics:
         if left_foot_strike:
             if 'left_knee_angle' in angles:
                 self.left_assessments['knee'] = AssessmentCalculator.assess_knee_angle(angles['left_knee_angle'], is_front=True)
+                self.left_knee_angle_at_strike = angles['left_knee_angle']
             if 'left_hip_ankle_angle' in angles:
                 self.left_assessments['hip_ankle'] = AssessmentCalculator.assess_hip_ankle_angle(angles['left_hip_ankle_angle'])
+                self.left_hip_ankle_angle_at_strike = angles['left_hip_ankle_angle']
             if 'left_shank_angle' in angles:
                 self.left_assessments['shank'] = AssessmentCalculator.assess_shank_angle(angles['left_shank_angle'])
+                self.left_shank_angle_at_strike = angles['left_shank_angle']
 
         if right_foot_strike:
             if 'right_knee_angle' in angles:
                 self.right_assessments['knee'] = AssessmentCalculator.assess_knee_angle(angles['right_knee_angle'], is_front=True)
+                self.right_knee_angle_at_strike = angles['right_knee_angle']
             if 'right_hip_ankle_angle' in angles:
                 self.right_assessments['hip_ankle'] = AssessmentCalculator.assess_hip_ankle_angle(angles['right_hip_ankle_angle'])
+                self.right_hip_ankle_angle_at_strike = angles['right_hip_ankle_angle']
             if 'right_shank_angle' in angles:
                 self.right_assessments['shank'] = AssessmentCalculator.assess_shank_angle(angles['right_shank_angle'])
+                self.right_shank_angle_at_strike = angles['right_shank_angle']
 
         # Update metrics with the current assessments
         metrics['left_knee_assessment'] = self.left_assessments['knee']
@@ -76,6 +90,13 @@ class StepMetrics:
         metrics['right_hip_ankle_angle_assessment'] = self.right_assessments['hip_ankle']
         metrics['left_shank_angle_assessment'] = self.left_assessments['shank']
         metrics['right_shank_angle_assessment'] = self.right_assessments['shank']
+
+        # Update angle metrics at strike if foot strike and persistent until next foot strike 
+        metrics['left_knee_angle_at_strike'] = self.left_knee_angle_at_strike
+        metrics['right_knee_angle_at_strike'] = self.right_knee_angle_at_strike
+        metrics['left_hip_ankle_angle_at_strike'] = self.left_hip_ankle_angle_at_strike
+        metrics['right_hip_ankle_angle_at_strike'] = self.right_hip_ankle_angle_at_strike
+        metrics['left_shank_angle_at_strike'] = self.left_shank_angle_at_strike
 
         # Steps per minute assessment is updated on every frame
         metrics['steps_per_minute_assessment'] = AssessmentCalculator.assess_steps_per_minute(metrics['steps_per_minute'])

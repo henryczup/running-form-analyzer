@@ -69,11 +69,13 @@ class AngleCalculator:
                 torso_vector = valid_keypoints[5]- valid_keypoints[11]
                 upper_arm_vector = valid_keypoints[5] - valid_keypoints[7]
                 angles['left_arm_swing_angle'] = AngleCalculator.calculate_angle(torso_vector, upper_arm_vector)
+                angles['left_arm_swing_angle'] = -angles['left_arm_swing_angle'] if upper_arm_vector[0] < 0 else angles['left_arm_swing_angle']
         else:  # 'right' side
             if all(i in valid_keypoints for i in [6, 8, 12]):
                 torso_vector = valid_keypoints[6] -  valid_keypoints[12]
                 upper_arm_vector = valid_keypoints[6] - valid_keypoints[8]
                 angles['right_arm_swing_angle'] = AngleCalculator.calculate_angle(torso_vector, upper_arm_vector)
+                angles['right_arm_swing_angle'] = -angles['right_arm_swing_angle'] if upper_arm_vector[0] < 0 else angles['right_arm_swing_angle']
 
         # Left knee angle
         if all(i in valid_keypoints for i in [11, 13, 15]):  # Left hip, left knee, left ankle
@@ -92,19 +94,21 @@ class AngleCalculator:
             torso_vector = valid_keypoints[11] - valid_keypoints[5]  # Left hip - Left shoulder
             thigh_vector = valid_keypoints[13] - valid_keypoints[11]  # Left knee - Left hip
             angles['left_hip_angle'] = AngleCalculator.calculate_angle(torso_vector, thigh_vector)
+            angles['left_hip_angle'] = -angles['left_hip_angle'] if thigh_vector[0] < 0 else angles['left_hip_angle']
 
         # Right hip angle
         if all(i in valid_keypoints for i in [6, 12, 14]):  # Right shoulder, right hip, right knee
             torso_vector = valid_keypoints[12] - valid_keypoints[6]  # Right hip - Right shoulder
             thigh_vector = valid_keypoints[14] - valid_keypoints[12]  # Right knee - Right hip
             angles['right_hip_angle'] = AngleCalculator.calculate_angle(torso_vector, thigh_vector)
+            angles['right_hip_angle'] = -angles['right_hip_angle'] if thigh_vector[0] < 0 else angles['right_hip_angle']
 
         # Hip-to-ankle angles
         if all(i in valid_keypoints for i in [11, 15]):  # Left hip, left ankle
             hip_ankle_line = valid_keypoints[15] - valid_keypoints[11]
             vertical_line = np.array([0, 1])
-
             angles['left_hip_ankle_angle'] = AngleCalculator.calculate_angle(hip_ankle_line, vertical_line)
+
         if all(i in valid_keypoints for i in [12, 16]):  # Right hip, right ankle
             hip_ankle_line = valid_keypoints[16] - valid_keypoints[12]
             vertical_line = np.array([0, 1])

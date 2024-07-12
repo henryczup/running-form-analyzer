@@ -7,6 +7,7 @@ from typing import Any, Dict
 class Config:
     side: str
     model_type: str
+    runner_height: float
     # filter_type: str
     # detection_axis: str
 
@@ -15,6 +16,7 @@ class Config:
         return cls(
             side=args.side,
             model_type=args.model_type,
+            runner_height=args.runner_height,
             # filter_type=args.filter_type,
             # detection_axis=args.detection_axis
         )
@@ -23,12 +25,11 @@ class Config:
         return {
             'side': self.side,
             'model_type': self.model_type,
+            'runner_height': self.runner_height,
             # 'filter_type': self.filter_type,
             # 'detection_axis': self.detection_axis
         }
-
-KNOWN_TORSO_LENGTH_CM = 52  # Average height of a person in cm
-
+    
 # Camera parameters for your XPS 15 
 HFOV_DEG = 74  # Horizontal field of view in degrees
 IMAGE_WIDTH_PX = 1280  # Image width in pixels

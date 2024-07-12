@@ -23,6 +23,7 @@ class AngleMetrics:
 
         self.step_metrics.update(valid_keypoints, timestamp, metrics, self.angles)
 
+        return self.angles
 
     def update_static_angles_assessment(self, metrics: Dict[str, any]):
         if 'head_angle' in metrics:
