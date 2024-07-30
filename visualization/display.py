@@ -52,7 +52,7 @@ def display_metrics(frame, metrics, side):
     put_text(f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm ({metrics['vertical_oscillation_assessment']})")
     put_text(f"Left Foot Strike: {metrics['left_foot_strike']}")
     put_text(f"Right Foot Strike: {metrics['right_foot_strike']}")
-    put_text(f"Steps per Minute: {metrics['steps_per_minute']:.2f} ({metrics['assess_steps_per_minute']})")
+    put_text(f"Steps per Minute: {metrics['steps_per_minute']:.2f} ({metrics['steps_per_minute_assessment']})")
     put_text(f"Elapsed Time: {metrics['elapsed_time']:.2f} s")
 
 def display_recommendations(frame, metrics):

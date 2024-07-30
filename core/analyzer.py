@@ -26,6 +26,7 @@ class Analyzer:
         self.metrics_calculator = Metrics(config)
         self.metrics_logger = MetricsLogger()
         self.video_recorder = VideoRecorder()
+        
 
         if model_type == 'blazepose':
             self.model = BlazePoseModel()

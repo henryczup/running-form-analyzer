@@ -1,20 +1,34 @@
 from collections import deque
 
+from feedback.audio_feedback import AudioFeedbackProvider
+
 class Recommendation:
-    def __init__(self, window_size=30, consistency_threshold=0.7):
+    def __init__(self, window_size=30, consistency_threshold=0.7, audio_provider: AudioFeedbackProvider = None):
         self.window_size = window_size
         self.consistency_threshold = consistency_threshold
         self.metric_history = {}
+        self.audio_provider = audio_provider 
         self.recommendations = {
-            'vertical_oscillation': "Reduce your vertical movement",
             'head_angle': 'Adjust your head position',
-            'trunk_angle': "Adjust your torso angle",
-            'left_elbow_angle': "Adjust your arm position",
-            'left_knee_angle': "Adjust your left knee position",
-            'right_knee_angle': "Adjust your right knee position",
-            'left_arm_swing_angle': "Adjust your arm swing",
-            'left_hip_ankle_angle': "Adjust your left leg position",
-            'right_hip_ankle_angle': "Adjust your right leg position"
+            'trunk_angle': 'Adjust your torso position',
+            'left_elbow_angle': 'Adjust your left elbow angle',
+            'right_elbow_angle': 'Adjust your right elbow angle',
+            'left_hip_ankle_angle_at_strike': 'Adjust your left foot strike',
+            'right_hip_ankle_angle_at_strike': 'Adjust your right foot strike',
+            'left_knee_angle_at_strike': 'Adjust your left knee position',
+            'right_knee_angle_at_strike': 'Adjust your right knee position',
+            'left_shank_angle_at_strike': 'Adjust your left shank position',
+            'right_shank_angle_at_strike': 'Adjust your right shank position',
+            'max_left_arm_backward_swing': 'Adjust your left arm backward swing',
+            'max_left_arm_forward_swing': 'Adjust your left arm forward swing',
+            'max_right_arm_backward_swing': 'Adjust your right arm backward swing',
+            'max_right_arm_forward_swing': 'Adjust your right arm forward swing',
+            'max_left_hip_backward_swing': 'Adjust your left hip backward swing',
+            'max_left_hip_forward_swing': 'Adjust your left hip forward swing',
+            'max_right_hip_backward_swing': 'Adjust your right hip backward swing',
+            'max_right_hip_forward_swing': 'Adjust your right hip forward swing',
+            'vertical_oscillation': 'Adjust your vertical oscillation',
+            'steps_per_minute': 'Adjust your steps per minute'
         }
 
     def update(self, metrics):
@@ -35,23 +49,13 @@ class Recommendation:
         count = sum(1 for assessment in history if assessment in ['Bad', 'Need Improvement'])
         return count / len(history) >= self.consistency_threshold
 
-    def any_metric_needs_improvement(self):
-        return any(self.needs_improvement(metric) for metric in self.recommendations.keys())
 
     def get_recommendations(self, metrics):
-        self.update({
-            'vertical_oscillation': metrics.get('vertical_oscillation_assessment'),
-            'head_angle': metrics.get('head_angle_assessment'),
-            'trunk_angle': metrics.get('trunk_angle_assessment'),
-            'left_elbow_angle': metrics.get('left_elbow_angle_assessment'),
-            'left_knee_angle': metrics.get('left_knee_assessment'),
-            'right_knee_angle': metrics.get('right_knee_assessment'),
-            'left_arm_swing_angle': metrics.get('left_arm_swing_angle_assessment'),
-            'left_hip_ankle_angle': metrics.get('left_hip_ankle_angle_assessment'),
-            'right_hip_ankle_angle': metrics.get('right_hip_ankle_angle_assessment')
-        })
-
-        if not self.any_metric_needs_improvement():
-            return []
-
-        return [self.recommendations[metric] for metric in self.recommendations if self.needs_improvement(metric)]
+        self.update(metrics)
+        recommendations = [self.recommendations[metric] for metric in self.recommendations if self.needs_improvement(metric)]
+        
+        if self.audio_provider:
+            for recommendation in recommendations:
+                self.audio_provider.add_feedback(recommendation)
+        
+        return recommendations

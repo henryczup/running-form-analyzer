@@ -1,7 +1,7 @@
 from typing import Dict, List
 import numpy as np
 from collections import deque
-from core.config import HFOV_DEG, IMAGE_WIDTH_PX, KNOWN_TORSO_LENGTH_CM, Config
+from core.config import HFOV_DEG, IMAGE_WIDTH_PX, Config
 from feedback.assessment_calculator import AssessmentCalculator
 
 HFOV_RAD = np.radians(HFOV_DEG)

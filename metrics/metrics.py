@@ -2,6 +2,7 @@
 from typing import Any, Dict, List, Literal, Tuple
 import numpy as np
 from core.config import Config
+from feedback.audio_feedback import AudioFeedbackProvider
 from metrics.angle_metrics import AngleMetrics
 from feedback.recommendations import Recommendation
 from metrics.distance_metrics import DistanceMetrics
@@ -11,7 +12,8 @@ class Metrics:
         self.config = config
         self.angle_metrics = AngleMetrics(config)
         self.distance_metrics = DistanceMetrics(config)
-        self.recommendations_calculator = Recommendation(window_size=30, consistency_threshold=0.7)
+        self.audio_provider = AudioFeedbackProvider()
+        self.recommendations_calculator = Recommendation(window_size=30, consistency_threshold=0.7, audio_provider=self.audio_provider)
         self.start_time = None
 
         self.key_metrics = {
@@ -65,7 +67,7 @@ class Metrics:
             'left_foot_strike': False,
             'right_foot_strike': False,
             'steps_per_minute': 0.0,
-            'assess_steps_per_minute': '',
+            'steps_per_minute_assessment': '',
             'recommendations': [],
         }
         self.angles = {}
