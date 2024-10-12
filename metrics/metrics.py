@@ -67,7 +67,6 @@ class Metrics:
             'left_foot_strike': False,
             'right_foot_strike': False,
             'steps_per_minute': 0.0,
-            'steps_per_minute_assessment': '',
             'recommendations': [],
         }
         self.angles = {}

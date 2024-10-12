@@ -1,13 +1,13 @@
 class AssessmentCalculator:
     @staticmethod
     def assess_head_angle(angle: float) -> str:
-        if angle < 80:
+        if angle < 65:
             return 'Bad'
-        elif 80 <= angle < 85:
+        elif 65 <= angle < 80:
             return 'Need Improvement'
-        elif 85 <= angle <= 95:
+        elif 80 <= angle <= 110:
             return 'Good'
-        elif 95 < angle <= 100:
+        elif 110 < angle <= 120:
             return 'Need Improvement'
         else:
             return 'Bad'
@@ -35,22 +35,22 @@ class AssessmentCalculator:
             return 'Bad'
         elif 1 <= angle < 5:
             return 'Need Improvement'
-        elif 5 <= angle <= 11:
+        elif 5 <= angle <= 15:
             return 'Good'
-        elif 11 < angle <= 15:
+        elif 15 < angle <= 17:
             return 'Need Improvement'
         else:
             return 'Bad'
 
     @staticmethod
     def assess_elbow_angle(angle: float) -> str:
-        if angle < 77:
+        if angle < 53:
             return 'Bad'
-        elif 77 <= angle < 79:
+        elif 53 <= angle < 60:
             return 'Need Improvement'
-        elif 79 <= angle <= 89:
+        elif 60 <= angle <= 90:
             return 'Good'
-        elif 89 < angle <= 93:
+        elif 89 < angle <= 95:
             return 'Need Improvement'
         else:
             return 'Bad'
@@ -70,13 +70,13 @@ class AssessmentCalculator:
 
     @staticmethod
     def assess_forward_arm_swing(angle: float) -> str:
-        if angle < 15:
+        if angle < 35:
             return 'Bad'
-        elif 15 <= angle < 25:
+        elif 35 <= angle < 45:
             return 'Need Improvement'
-        elif 25 <= angle <= 40:
+        elif 45 <= angle <= 65:
             return 'Good'
-        elif 40 < angle <= 50:
+        elif 65 < angle <= 75:
             return 'Need Improvement'
         else:
             return 'Bad'
@@ -91,53 +91,40 @@ class AssessmentCalculator:
 
     @staticmethod
     def assess_hip_ankle_angle(angle: float) -> str:
-        if angle < 145:
-            return 'Bad'
-        elif 145 <= angle < 150:
-            return 'Need Improvement'
-        elif 150 <= angle <= 160:
+        # if angle < :
+        #     return 'Bad'
+        # elif  <= angle < :
+        #     return 'Need Improvement'
+        if 0 <= angle <= 15:
             return 'Good'
-        elif 160 < angle <= 165:
-            return 'Need Improvement'
-        else:
-            return 'Bad'
-        
-    @staticmethod
-    def assess_steps_per_minute(steps_per_minute: float) -> str:
-        if steps_per_minute < 155:
-            return 'Bad'
-        elif 155 <= steps_per_minute < 165:
-            return 'Need Improvement'
-        elif 165 <= steps_per_minute <= 180:
-            return 'Good'
-        elif 180 < steps_per_minute <= 190:
+        elif 15 < angle <= 20:
             return 'Need Improvement'
         else:
             return 'Bad'
         
     @staticmethod
     def assess_backward_hip_swing(angle: float) -> str:
-        if angle < 10:
+        if angle < 29:
             return 'Bad'
-        elif 10 <= angle < 15:
-            return 'Need Improvement'
-        else:
+        elif 29 <= angle < 41:
             return 'Good'
+        else:
+            return 'Need Improvement'
 
     @staticmethod
     def assess_forward_hip_swing(angle: float) -> str:
-        if angle < 30:
+        if angle < 29:
             return 'Bad'
-        elif 30 <= angle < 40:
-            return 'Need Improvement'
-        elif 40 <= angle <= 50:
+        elif 29 <= angle < 41:
             return 'Good'
+        else:
+            return 'Need Improvement'
 
     @staticmethod
     def assess_shank_angle(angle: float) -> str:
-        if 0 <= angle <= 5:
+        if 0 <= angle <= 10:
             return 'Good'
-        elif 5 < angle <= 10:
+        elif 10 < angle <= 15:
             return 'Need Improvement'
         else:
             return 'Bad'

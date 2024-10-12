@@ -97,6 +97,4 @@ class StepMetrics:
         metrics['left_hip_ankle_angle_at_strike'] = self.left_hip_ankle_angle_at_strike
         metrics['right_hip_ankle_angle_at_strike'] = self.right_hip_ankle_angle_at_strike
         metrics['left_shank_angle_at_strike'] = self.left_shank_angle_at_strike
-
-        # Steps per minute assessment is updated on every frame
-        metrics['steps_per_minute_assessment'] = AssessmentCalculator.assess_steps_per_minute(metrics['steps_per_minute'])
+        metrics['right_shank_angle_at_strike'] = self.right_shank_angle_at_strike

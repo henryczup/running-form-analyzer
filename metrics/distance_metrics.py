@@ -38,6 +38,6 @@ class DistanceMetrics:
         else:
             moving_avg = np.convolve(list(self.hip_positions), np.ones(5), 'valid') / 5
             oscillation = (np.max(moving_avg) - np.min(moving_avg)) / 2
-            metrics['vertical_oscillation'] = oscillation * (self.current_distance / FOCAL_LENGTH_PX)
+            metrics['vertical_oscillation'] = (oscillation * (self.current_distance / FOCAL_LENGTH_PX)) / 20
         
         metrics['vertical_oscillation_assessment'] = AssessmentCalculator.assess_vertical_oscillation(metrics['vertical_oscillation'])

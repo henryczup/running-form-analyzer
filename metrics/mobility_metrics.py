@@ -55,6 +55,9 @@ class MobilityMetrics:
 
     def finalize_swing(self, limb: str, swing_type: str):
         current_max = getattr(self, f'{limb}_current_{swing_type}')
+        if 'arm' in limb and current_max < 20:
+            setattr(self, f'{limb}_current_{swing_type}', 0)
+            return
         setattr(self, f'{limb}_max_{swing_type}', current_max)
         setattr(self, f'{limb}_current_{swing_type}', 0)
 

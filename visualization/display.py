@@ -33,17 +33,17 @@ def display_metrics(frame, metrics, side):
     put_text(f"Right Knee Angle at strike: {metrics['right_knee_angle_at_strike']:.2f} ({metrics['right_knee_assessment']})")
     put_text(f"Left Hip-Ankle Angle at strike: {metrics['left_hip_ankle_angle_at_strike']:.2f} ({metrics['left_hip_ankle_angle_assessment']})")
     put_text(f"Right Hip-Ankle Angle at strike: {metrics['right_hip_ankle_angle_at_strike']:.2f} ({metrics['right_hip_ankle_angle_assessment']})")
-    put_text(f"Left Shank Angle at strike: {metrics['left_shank_angle_at_strike']:.2f} ({metrics['left_shank_angle_assessment']})")
-    put_text(f"Right Shank Angle at strike: {metrics['right_shank_angle_at_strike']:.2f} ({metrics['right_shank_angle_assessment']})")
     
     if side == 'left':
         put_text(f"Left Elbow Angle: {metrics['left_elbow_angle']:.2f} ({metrics['left_elbow_angle_assessment']})")
+        put_text(f"Left Shank Angle at strike: {metrics['left_shank_angle_at_strike']:.2f} ({metrics['left_shank_angle_assessment']})")
         put_text(f"Max Left Arm Forward Swing: {metrics['max_left_arm_forward_swing']:.2f} ({metrics['left_arm_forward_swing_assessment']})")
         put_text(f"Max Left Arm Backward Swing: {metrics['max_left_arm_backward_swing']:.2f} ({metrics['left_arm_backward_swing_assessment']})")
         put_text(f"Max Left Hip Forward Swing: {metrics['max_left_hip_forward_swing']:.2f} ({metrics['left_hip_forward_swing_assessment']})")
         put_text(f"Max Left Hip Backward Swing: {metrics['max_left_hip_backward_swing']:.2f} ({metrics['left_hip_backward_swing_assessment']})")
     else:
         put_text(f"Right Elbow Angle: {metrics['right_elbow_angle']:.2f} ({metrics['right_elbow_angle_assessment']})")
+        put_text(f"Right Shank Angle at strike: {metrics['right_shank_angle_at_strike']:.2f} ({metrics['right_shank_angle_assessment']})")
         put_text(f"Max Right Arm Forward Swing: {metrics['max_right_arm_forward_swing']:.2f} ({metrics['right_arm_forward_swing_assessment']})")
         put_text(f"Max Right Arm Backward Swing: {metrics['max_right_arm_backward_swing']:.2f} ({metrics['right_arm_backward_swing_assessment']})")
         put_text(f"Max Right Hip Forward Swing: {metrics['max_right_hip_forward_swing']:.2f} ({metrics['right_hip_forward_swing_assessment']})")
@@ -52,7 +52,7 @@ def display_metrics(frame, metrics, side):
     put_text(f"Vertical Oscillation: {metrics['vertical_oscillation']:.2f} cm ({metrics['vertical_oscillation_assessment']})")
     put_text(f"Left Foot Strike: {metrics['left_foot_strike']}")
     put_text(f"Right Foot Strike: {metrics['right_foot_strike']}")
-    put_text(f"Steps per Minute: {metrics['steps_per_minute']:.2f} ({metrics['steps_per_minute_assessment']})")
+    put_text(f"Steps per Minute: {metrics['steps_per_minute']:.2f}")
     put_text(f"Elapsed Time: {metrics['elapsed_time']:.2f} s")
 
 def display_recommendations(frame, metrics):
