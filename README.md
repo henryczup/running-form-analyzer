@@ -1,5 +1,7 @@
 # Running Analysis Project
 
+![](https://github.com/running-form-analyzer/test.gif)
+
 ## Overview
 This project provides a real-time running analysis tool using computer vision and pose estimation techniques. It captures video input from a camera, analyzes the runner's form, and provides instant feedback on various biomechanical metrics.
 
